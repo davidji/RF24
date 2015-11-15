@@ -10,22 +10,25 @@
 #ifndef __RF24_CONFIG_H__
 #define __RF24_CONFIG_H__
 
-#if ARDUINO < 100
-#include <WProgram.h>
-#else
-#include <Arduino.h>
-#endif
-
 #include <stddef.h>
 
 // Stuff that is normally provided by Arduino
 #ifdef ARDUINO
+#if ARDUINO < 100
+#include <WProgram.h>
+#else
+#include <Arduino.h>
+#endif /* ARDUINO < 100 */
+
 #include <SPI.h>
 #else
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdbool.h>
+#ifndef CHIBIOS
 extern HardwareSPI SPI;
+#endif
 #define _BV(x) (1<<(x))
 #endif
 
@@ -51,7 +54,6 @@ extern HardwareSPI SPI;
 #include <avr/pgmspace.h>
 #define PRIPSTR "%S"
 #else
-typedef char const char;
 typedef uint16_t prog_uint16_t;
 #define PSTR(x) (x)
 #define printf_P printf

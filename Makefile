@@ -1,0 +1,2 @@
+include chibios/dummy.mk
+
