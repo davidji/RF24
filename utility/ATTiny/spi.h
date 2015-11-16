@@ -7,8 +7,6 @@
  */
  
 #include <stdio.h>
-#include <Arduino.h>
-#include <avr/pgmspace.h>
 
 #define SPI_CLOCK_DIV4 0x00
 #define SPI_CLOCK_DIV16 0x01
@@ -32,7 +30,7 @@
 
 class SPIClass {
 public:
-  static byte transfer(byte _data);
+  static uint8_t transfer(uint8_t _data);
 
   // SPI Configuration methods
 

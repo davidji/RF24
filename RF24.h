@@ -19,9 +19,9 @@
 
 #if defined (RF24_LINUX)
   #include "utility/includes.h"
-#elif LITTLEWIRE
+#elif defined(LITTLEWIRE)
   #include <LittleWireSPI/LittleWireSPI.h>
-#elif defined SOFTSPI
+#elif defined(SOFTSPI)
   #include <DigitalIO.h>
 #endif
 
@@ -61,13 +61,16 @@ private:
 
 #if defined (RF24_LINUX)
   SPI spi;
+#elif defined (CHIBIOS)
+  rf24::SPI spi;
 #endif
 #if defined (MRAA)
   GPIO gpio;
 #endif
 
-  uint8_t ce_pin; /**< "Chip Enable" pin, activates the RX or TX role */
-  uint8_t csn_pin; /**< SPI Chip select */
+  gpio_pin_t ce_pin; /**< "Chip Enable" pin, activates the RX or TX role */
+  gpio_pin_t csn_pin; /**< SPI Chip select */
+
 #if defined (RF24_LINUX)
   uint16_t spi_speed; /**< SPI Bus Speed */
   uint8_t spi_rxbuff[32+1] ; //SPI receive buffer (payload max 32 bytes)
@@ -101,6 +104,7 @@ public:
    */
   /**@{*/
 
+#if defined (ARDUINO)
   /**
    * Arduino Constructor
    *
@@ -110,8 +114,9 @@ public:
    * @param _cepin The pin attached to Chip Enable on the RF module
    * @param _cspin The pin attached to Chip Select
    */
-  RF24(uint8_t _cepin, uint8_t _cspin);
-  //#if defined (RF24_LINUX)
+  RF24(gpio_pin_t _cepin, gpio_pin_t _cspin);
+#endif
+#if defined (RF24_LINUX)
   
     /**
   * Optional Raspberry Pi Constructor
@@ -124,12 +129,16 @@ public:
   * @param spispeed For RPi, the SPI speed in MHZ ie: BCM2835_SPI_SPEED_8MHZ
   */
   
-  RF24(uint8_t _cepin, uint8_t _cspin, uint32_t spispeed );
-  //#endif
+  RF24(gpio_pin_t _cepin, gpio_pin_t _cspin, uint32_t spispeed );
+#endif
 
-  #if defined (RF24_LINUX)
+#if defined (RF24_LINUX)
   virtual ~RF24() {};
-  #endif
+#endif
+
+#if defined (CHIBIOS)
+  RF24(gpio_pin_t _cepin, gpio_pin_t _cspin, SPIDriver *driver);
+#endif
 
   /**
    * Begin operation of the chip
@@ -643,7 +652,13 @@ s   *
    *
    * @return true if this is a legitimate radio
    */
-  bool isValid() { return ce_pin != 0xff && csn_pin != 0xff; }
+  bool isValid() {
+#if defined(CHIBIOS)
+	  return ce_pin.pad != 0xff && csn_pin.pad != 0xff;
+#else
+	  return ce_pin != 0xff && csn_pin != 0xff;
+#endif
+   }
   
    /**
    * Close a pipe after it has been previously opened.

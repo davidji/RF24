@@ -10,8 +10,14 @@
 						<entry kind="includePath" name="/${ProjName}/">
 							<flag value="VALUE_WORKSPACE_PATH"/>
 						</entry>
-						<entry kind="includePath" name="/${ProjName}/chibios">
-							<flag value="VALUE_WORKSPACE_PATH"/>
+						<entry kind="includePath" name="/Chibios/os/common/ports/ARMCMx/devices/STM32F4xx">
+							<flag value="VALUE_WORKSPACE_PATH|RESOLVED"/>
+						</entry>
+						<entry kind="includePath" name="/Chibios/os/ext/CMSIS/include">
+							<flag value="VALUE_WORKSPACE_PATH|RESOLVED"/>
+						</entry>
+						<entry kind="includePath" name="/Chibios/os/ext/CMSIS/ST">
+							<flag value="VALUE_WORKSPACE_PATH|RESOLVED"/>
 						</entry>
 						<entry kind="includePath" name="/Chibios/os/rt/include">
 							<flag value="VALUE_WORKSPACE_PATH|RESOLVED"/>
@@ -22,10 +28,61 @@
 						<entry kind="includePath" name="/Chibios/os/rt/ports/ARMCMx/compilers/GCC">
 							<flag value="VALUE_WORKSPACE_PATH|RESOLVED"/>
 						</entry>
+						<entry kind="includePath" name="/Chibios/os/hal/osal/rt">
+							<flag value="VALUE_WORKSPACE_PATH|RESOLVED"/>
+						</entry>
 						<entry kind="includePath" name="/Chibios/os/hal/include">
 							<flag value="VALUE_WORKSPACE_PATH|RESOLVED"/>
 						</entry>
+						<entry kind="includePath" name="/Chibios/os/hal/ports/common/ARMCMx">
+							<flag value="VALUE_WORKSPACE_PATH|RESOLVED"/>
+						</entry>
+						<entry kind="includePath" name="/Chibios/os/hal/ports/STM32/STM32F4xx">
+							<flag value="VALUE_WORKSPACE_PATH|RESOLVED"/>
+						</entry>
+						<entry kind="includePath" name="/Chibios/os/hal/ports/STM32/LLD">
+							<flag value="VALUE_WORKSPACE_PATH|RESOLVED"/>
+						</entry>
+						<entry kind="includePath" name="/Chibios/os/hal/ports/STM32/LLD/DACv1">
+							<flag value="VALUE_WORKSPACE_PATH|RESOLVED"/>
+						</entry>
+						<entry kind="includePath" name="/Chibios/os/hal/ports/STM32/LLD/GPIOv2">
+							<flag value="VALUE_WORKSPACE_PATH|RESOLVED"/>
+						</entry>
+						<entry kind="includePath" name="/Chibios/os/hal/ports/STM32/LLD/I2Cv1">
+							<flag value="VALUE_WORKSPACE_PATH|RESOLVED"/>
+						</entry>
+						<entry kind="includePath" name="/Chibios/os/hal/ports/STM32/LLD/OTGv1">
+							<flag value="VALUE_WORKSPACE_PATH|RESOLVED"/>
+						</entry>
+						<entry kind="includePath" name="/Chibios/os/hal/ports/STM32/LLD/RTCv2">
+							<flag value="VALUE_WORKSPACE_PATH|RESOLVED"/>
+						</entry>
+						<entry kind="includePath" name="/Chibios/os/hal/ports/STM32/LLD/SPIv1">
+							<flag value="VALUE_WORKSPACE_PATH|RESOLVED"/>
+						</entry>
+						<entry kind="includePath" name="/Chibios/os/hal/ports/STM32/LLD/TIMv1">
+							<flag value="VALUE_WORKSPACE_PATH|RESOLVED"/>
+						</entry>
+						<entry kind="includePath" name="/Chibios/os/hal/ports/STM32/LLD/USARTv1">
+							<flag value="VALUE_WORKSPACE_PATH|RESOLVED"/>
+						</entry>
+						<entry kind="includePath" name="/Chibios/os/hal/ports/STM32/LLD/FSMCv1">
+							<flag value="VALUE_WORKSPACE_PATH|RESOLVED"/>
+						</entry>
+						<entry kind="includePath" name="/Chibios/os/hal/boards/ST_NUCLEO_F411RE">
+							<flag value="VALUE_WORKSPACE_PATH|RESOLVED"/>
+						</entry>
 						<entry kind="includePath" name="/Chibios/os/various">
+							<flag value="VALUE_WORKSPACE_PATH|RESOLVED"/>
+						</entry>
+						<entry kind="includePath" name="/RF24">
+							<flag value="VALUE_WORKSPACE_PATH|RESOLVED"/>
+						</entry>
+						<entry kind="includePath" name="/RF24/utility/Chibios">
+							<flag value="VALUE_WORKSPACE_PATH|RESOLVED"/>
+						</entry>
+						<entry kind="includePath" name="/RF24/examples_Chibios/GettingStarted">
 							<flag value="VALUE_WORKSPACE_PATH|RESOLVED"/>
 						</entry>
 						<entry kind="macro" name="CHIBIOS" value=""/>

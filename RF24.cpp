@@ -423,12 +423,14 @@ void RF24::print_address_register(const char* name, uint8_t reg, uint8_t qty)
 #endif
 /****************************************************************************/
 
-RF24::RF24(uint8_t _cepin, uint8_t _cspin):
+#if defined(ARDUINO)
+RF24::RF24(gpio_pin_t _cepin, gpio_pin_t _cspin):
   ce_pin(_cepin), csn_pin(_cspin), p_variant(false),
   payload_size(32), dynamic_payloads_enabled(false), addr_width(5)//,pipe0_reading_address(0)
 {
   pipe0_reading_address[0]=0;
 }
+#endif
 
 /****************************************************************************/
 
@@ -438,6 +440,14 @@ RF24::RF24(uint8_t _cepin, uint8_t _cspin, uint32_t _spi_speed):
 {
   pipe0_reading_address[0]=0;
 }
+#endif
+
+/****************************************************************************/
+#if defined (CHIBIOS)
+  RF24::RF24(gpio_pin_t _cepin, gpio_pin_t _cspin, SPIDriver *driver):
+		spi(rf24::SPI(driver)), ce_pin(_cepin),csn_pin(_cspin) ,p_variant(false), payload_size(32), dynamic_payloads_enabled(false),addr_width(5) {
+
+  }
 #endif
 
 /****************************************************************************/
@@ -613,12 +623,12 @@ bool RF24::begin(void)
     csn(HIGH);
   #else
     // Initialize pins
-    if (ce_pin != csn_pin) pinMode(ce_pin,OUTPUT);  
+    if (ce_pin != csn_pin) pinMode(ce_pin, OUTPUT);
   
     #if ! defined(LITTLEWIRE)
       if (ce_pin != csn_pin)
     #endif
-        pinMode(csn_pin,OUTPUT);
+        pinMode(csn_pin, OUTPUT);
     
     _SPI.begin();
     ce(LOW);

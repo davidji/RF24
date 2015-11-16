@@ -52,6 +52,10 @@
 #elif defined (TEENSYDUINO)
 
   #include "utility/Teensy/RF24_arch_config.h"  
+
+#elif defined (CHIBIOS)
+
+  #include "utility/Chibios/RF24_arch_config.h"
 //Everything else
 #else 
 
