@@ -13,8 +13,8 @@
  * @{
  */
 #include <stdint.h>
-#include <ch.h>
-#include <hal.h>
+#include "ch.h"
+#include "hal.h"
 
 using namespace std;
 
@@ -25,7 +25,7 @@ public:
 	/**
 	* SPI constructor
 	*/	 
-	SPI(SPIDriver *driver);
+	SPI(SPIDriver *driver, SPIConfig config);
 	
 	/**
 	* Start SPI
@@ -59,8 +59,8 @@ public:
 private:
 
 	SPIDriver *driver;
+	SPIConfig config;
 
-	void init();	
 };
 
 }

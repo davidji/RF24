@@ -31,7 +31,7 @@
 #include <string.h>
 #include "ch.h"
 #include "hal.h"
-#include "spi.h"
+#include "rf24-spi.h"
 
 #define _BV(x) (1<<(x))
 #define _SPI spi
