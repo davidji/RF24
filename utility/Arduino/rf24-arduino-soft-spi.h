@@ -12,31 +12,22 @@
  * 
  * @{
  */
-#include <string>
 #include <stdint.h>
-#include <unistd.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <getopt.h>
-#include <fcntl.h>
-#include <sys/ioctl.h>
-#include <inttypes.h>
-#include <linux/types.h>
-#include <linux/spi/spidev.h> 
+#include "ch.h"
+#include "hal.h"
 
-using namespace std;
-//class SPI {
+template<int SOFT_SPI_MISO_PIN, int SOFT_SPI_MOSI_PIN, int SOFT_SPI_SCK_PIN> class RF24ArduinoSoftSpi {
 public:
 
-/**
+	/**
 	* SPI constructor
 	*/	 
-	SPI();
+	RF24ArduinoSoftSpi(int csn);
 	
 	/**
 	* Start SPI
 	*/
-	void begin(int busNo);
+	void begin();
 	
 	/**
 	* Transfer a single byte
@@ -60,7 +51,7 @@ public:
 	*/	
 	void transfern(char* buf, uint32_t len);
 
-	/**
+    /**
      * Select the device, ready for transfers. I.e. CSN goes low.
      */
     void select();
@@ -71,21 +62,12 @@ public:
     void unselect();
 
 
-	virtual ~SPI();
+	
+	virtual ~RF24ArduinoSoftSpi();
 
 private:
-
-	/** Default SPI device */
-	string device;
-	/** SPI Mode set */
-	uint8_t mode;
-	/** word size*/
-	uint8_t bits;
-	/** Set SPI speed*/
-	uint32_t speed;
-	int fd;
-
-	void init();	
+	int csn;
+	SoftSPI<SOFT_SPI_MISO_PIN, SOFT_SPI_MOSI_PIN, SOFT_SPI_SCK_PIN, 0> spi;
 };
 
 

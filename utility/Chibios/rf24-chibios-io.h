@@ -3,7 +3,8 @@
  * @file spi.h
  * Class declaration for SPI helper files
  */
-
+#ifndef _RF24_CHIBIOS_IO_H_
+#define _RF24_CHIBIOS_IO_H_
  /**
  * Example of spi.h class declaration for SPI portability
  *
@@ -12,32 +13,36 @@
  * 
  * @{
  */
-#include <string>
-#include <stdint.h>
-#include <unistd.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <getopt.h>
-#include <fcntl.h>
-#include <sys/ioctl.h>
-#include <inttypes.h>
-#include <linux/types.h>
-#include <linux/spi/spidev.h> 
 
-using namespace std;
-//class SPI {
+#include <stdint.h>
+#include "ch.h"
+#include "hal.h"
+
+class Rf24ChibiosIo {
 public:
 
-/**
-	* SPI constructor
-	*/	 
-	SPI();
-	
 	/**
-	* Start SPI
+	* SPI constructor
 	*/
-	void begin(int busNo);
+	Rf24ChibiosIo(SPIDriver *driver, const SPIConfig *config, ioportid_t ce_port, uint8_t ce_pad);
+
+	Rf24ChibiosIo(Rf24ChibiosIo &io) = default;
+
+    /**
+    * Initialise. This involves initialising ce and csn for output and setting them both low.
+    */
+    void begin();
+
+    /**
+    * Start SPI
+    */
+    void beginTransaction();
 	
+    /**
+     * Start SPI
+     */
+    void endTransaction();
+
 	/**
 	* Transfer a single byte
 	* @param tx_ Byte to send
@@ -60,7 +65,7 @@ public:
 	*/	
 	void transfern(char* buf, uint32_t len);
 
-	/**
+    /**
      * Select the device, ready for transfers. I.e. CSN goes low.
      */
     void select();
@@ -70,23 +75,20 @@ public:
      */
     void unselect();
 
-
-	virtual ~SPI();
+    /**
+     * Set the level of the CE pin
+     * @param level
+     */
+    void ce(bool level);
 
 private:
 
-	/** Default SPI device */
-	string device;
-	/** SPI Mode set */
-	uint8_t mode;
-	/** word size*/
-	uint8_t bits;
-	/** Set SPI speed*/
-	uint32_t speed;
-	int fd;
+	SPIDriver *driver;
+	const SPIConfig *config;
+	ioportid_t ce_port;
+	uint8_t ce_pad;
 
-	void init();	
 };
 
-
 /*@}*/
+#endif

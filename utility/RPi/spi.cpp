@@ -2,7 +2,7 @@
 
 #include "spi.h"
 
-SPI::SPI() {
+SPI::SPI(int csn_pin, uint16_t spi_speed) : csn_pin(csn_pin), spi_speed(spi_speed) {
 
 }
 
@@ -31,6 +31,17 @@ void SPI::setDataMode(uint8_t data_mode) {
 
 void SPI::setClockDivider(uint16_t spi_speed) {
 	bcm2835_spi_setClockDivider(spi_speed);
+}
+
+void SPI::select() {
+    setBitOrder(RF24_BIT_ORDER);
+    setDataMode(RF24_DATA_MODE);
+    setClockDivider(spi_speed ? spi_speed : RF24_CLOCK_DIVIDER);
+    chipSelect(csn_pin);
+    delayMicroseconds(5);
+}
+
+void SPI::unselect() {
 }
 
 void SPI::chipSelect(int csn_pin){

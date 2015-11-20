@@ -31,10 +31,12 @@
 #include <string.h>
 #include "ch.h"
 #include "hal.h"
-#include "rf24-spi.h"
+#include "rf24-chibios-io.h"
+
+#define RF24_IO Rf24ChibiosIo
 
 #define _BV(x) (1<<(x))
-#define _SPI spi
+#define RF24_SPI spi
 
 #undef SERIAL_DEBUG
 #ifdef SERIAL_DEBUG
@@ -58,29 +60,11 @@ typedef uint16_t prog_uint16_t;
 #define printf_P printf
 #define strlen_P strlen
 #define PROGMEM
-#define pgm_read_word(p) (*(p)) 
+#define pgm_read_word(p) (*(p))
 #define PRIPSTR "%s"
-#define pgm_read_byte(p) (*(p))
 
-typedef struct {
-	ioportid_t port;
-	ioportmask_t pad;
-} gpio_pin_t;
-
-static inline bool operator==(const gpio_pin_t lhs, gpio_pin_t rhs) {
-    return lhs.port == rhs.port && lhs.pad == rhs.pad;
-}
-
-static inline bool operator!=(const gpio_pin_t lhs, gpio_pin_t rhs) {
-    return lhs.port != rhs.port || lhs.pad != rhs.pad;
-}
-
-static inline void pinMode(gpio_pin_t pin, iomode_t direction) {
-	palSetPadMode(pin.port, pin.pad, direction);
-}
-
-static inline void digitalWrite(const gpio_pin_t pin, bool value) {
-	palWritePad(pin.port, pin.pad, value);
+static inline uint8_t pgm_read_byte(const uint8_t *p) {
+    return *p;
 }
 
 static inline void delay(uint32_t milisec) {

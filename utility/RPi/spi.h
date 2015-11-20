@@ -16,9 +16,9 @@
 class SPI {
 public:
 
-  SPI();
+  SPI(int csn_pin, uint16_t speed);
   virtual ~SPI();
-  
+
   inline static uint8_t transfer(uint8_t _data);
   inline static void transfernb(char* tbuf, char* rbuf, uint32_t len);
   inline static void transfern(char* buf, uint32_t len);  
@@ -26,10 +26,24 @@ public:
   static void begin(int busNo);
   static void end();
 
+  /**
+   * Select the device, ready for transfers. I.e. CSN goes low.
+   */
+  void select();
+
+  /**
+   * un-select the device. I.e. CSN goes high.
+   */
+  void unselect();
+
   static void setBitOrder(uint8_t bit_order);
   static void setDataMode(uint8_t data_mode);
   static void setClockDivider(uint16_t spi_speed);
   static void chipSelect(int csn_pin);
+
+private:
+  int csn_pin;
+  uint16_t spi_speed;
 };
 
 

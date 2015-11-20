@@ -16,16 +16,13 @@
 #include "ch.h"
 #include "hal.h"
 
-using namespace std;
-
-namespace rf24 {
-class SPI {
+class RF24ArduinoSpi {
 public:
 
 	/**
 	* SPI constructor
 	*/	 
-	SPI(SPIDriver *driver, SPIConfig config);
+	RF24ArduinoSpi(int csn);
 	
 	/**
 	* Start SPI
@@ -53,15 +50,25 @@ public:
 	* @param len Length of the data
 	*/	
 	void transfern(char* buf, uint32_t len);
+
+    /**
+     * Select the device, ready for transfers. I.e. CSN goes low.
+     */
+    void select();
+
+    /**
+     * un-select the device. I.e. CSN goes high.
+     */
+    void unselect();
+
+
 	
-	virtual ~SPI();
+	virtual ~RF24ArduinoSpi();
 
 private:
-
-	SPIDriver *driver;
-	SPIConfig config;
+	int csn;
 
 };
 
-}
+
 /*@}*/

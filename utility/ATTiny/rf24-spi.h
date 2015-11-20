@@ -27,7 +27,6 @@
 #define SPI_2XCLOCK_MASK 0x01  // SPI2X = bit 0 on SPSR
 
 
-
 class SPIClass {
 public:
   static uint8_t transfer(uint8_t _data);

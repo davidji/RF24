@@ -53,36 +53,14 @@ typedef enum { RF24_CRC_DISABLED = 0, RF24_CRC_8, RF24_CRC_16 } rf24_crclength_e
 class RF24
 {
 private:
-#ifdef SOFTSPI
-  SoftSPI<SOFT_SPI_MISO_PIN, SOFT_SPI_MOSI_PIN, SOFT_SPI_SCK_PIN, SPI_MODE> spi;
-#elif defined (SPI_UART)
-  SPIUARTClass uspi;
-#endif
-
-#if defined (RF24_LINUX)
-  SPI spi;
-#elif defined (CHIBIOS)
-  rf24::SPI spi;
-#endif
-#if defined (MRAA)
-  GPIO gpio;
-#endif
-
-  gpio_pin_t ce_pin; /**< "Chip Enable" pin, activates the RX or TX role */
-  gpio_pin_t csn_pin; /**< SPI Chip select */
-
-#if defined (RF24_LINUX)
-  uint16_t spi_speed; /**< SPI Bus Speed */
-  uint8_t spi_rxbuff[32+1] ; //SPI receive buffer (payload max 32 bytes)
-  uint8_t spi_txbuff[32+1] ; //SPI transmit buffer (payload max 32 bytes + 1 byte for the command)
-#endif  
+  RF24_IO io;
   bool p_variant; /* False for RF24L01 and true for RF24L01P */
   uint8_t payload_size; /**< Fixed size of payloads */
   bool dynamic_payloads_enabled; /**< Whether dynamic payloads are enabled. */
   uint8_t pipe0_reading_address[5]; /**< Last address set on pipe 0 for reading. */
   uint8_t addr_width; /**< The address width to use - 3,4 or 5 bytes. */
   uint32_t txRxDelay; /**< Var for adjusting delays depending on datarate */
-  
+
 
 protected:
   /**
@@ -104,41 +82,7 @@ public:
    */
   /**@{*/
 
-#if defined (ARDUINO)
-  /**
-   * Arduino Constructor
-   *
-   * Creates a new instance of this driver.  Before using, you create an instance
-   * and send in the unique pins that this chip is connected to.
-   *
-   * @param _cepin The pin attached to Chip Enable on the RF module
-   * @param _cspin The pin attached to Chip Select
-   */
-  RF24(gpio_pin_t _cepin, gpio_pin_t _cspin);
-#endif
-#if defined (RF24_LINUX)
-  
-    /**
-  * Optional Raspberry Pi Constructor
-  *
-  * Creates a new instance of this driver.  Before using, you create an instance
-  * and send in the unique pins that this chip is connected to.
-  *
-  * @param _cepin The pin attached to Chip Enable on the RF module
-  * @param _cspin The pin attached to Chip Select
-  * @param spispeed For RPi, the SPI speed in MHZ ie: BCM2835_SPI_SPEED_8MHZ
-  */
-  
-  RF24(gpio_pin_t _cepin, gpio_pin_t _cspin, uint32_t spispeed );
-#endif
-
-#if defined (RF24_LINUX)
-  virtual ~RF24() {};
-#endif
-
-#if defined (CHIBIOS)
-  RF24(gpio_pin_t _cepin, gpio_pin_t _cspin, SPIDriver *driver);
-#endif
+  RF24(RF24_IO io);
 
   /**
    * Begin operation of the chip
@@ -653,12 +597,8 @@ s   *
    * @return true if this is a legitimate radio
    */
   bool isValid() {
-#if defined(CHIBIOS)
-	  return ce_pin.pad != 0xff && csn_pin.pad != 0xff;
-#else
-	  return ce_pin != 0xff && csn_pin != 0xff;
-#endif
-   }
+      return true;
+  }
   
    /**
    * Close a pipe after it has been previously opened.
@@ -988,14 +928,6 @@ private:
    * @param mode HIGH to take this unit off the SPI bus, LOW to put it on
    */
   void csn(bool mode);
-
-  /**
-   * Set chip enable
-   *
-   * @param level HIGH to actively begin transmission or LOW to put in standby.  Please see data sheet
-   * for a much more detailed description of this pin.
-   */
-  void ce(bool level);
 
   /**
    * Read a chunk of data in from a register
