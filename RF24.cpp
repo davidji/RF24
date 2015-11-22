@@ -101,9 +101,7 @@ uint8_t RF24::write_payload(const void* buf, uint8_t data_len, const uint8_t wri
 
   beginTransaction();
   status = io.transfer( writeType );
-  while ( data_len-- ) {
-    io.transfer(*current++);
-  }
+  io.transfern(current, data_len);
   while ( blank_len-- ) {
     io.transfer(0);
   }  
@@ -364,10 +362,10 @@ void RF24::printDetails(void)
   print_byte_register(PSTR("CONFIG\t"),CONFIG);
   print_byte_register(PSTR("DYNPD/FEATURE"),DYNPD,2);
 
-  printf_P(PSTR("Data Rate\t = "PRIPSTR"\r\n") ,pgm_read_word(&rf24_datarate_e_str_P[getDataRate()]));
-  printf_P(PSTR("Model\t\t = "PRIPSTR"\r\n"), pgm_read_word(&rf24_model_e_str_P[isPVariant()]));
-  printf_P(PSTR("CRC Length\t = "PRIPSTR"\r\n"), pgm_read_word(&rf24_crclength_e_str_P[getCRCLength()]));
-  printf_P(PSTR("PA Power\t = "PRIPSTR"\r\n"),  pgm_read_word(&rf24_pa_dbm_e_str_P[getPALevel()]));
+  printf_P(PSTR( "Data Rate\t = "PRIPSTR"\r\n" ) ,pgm_read_word(&rf24_datarate_e_str_P[getDataRate()]));
+  printf_P(PSTR( "Model\t\t = "PRIPSTR"\r\n" ), pgm_read_word(&rf24_model_e_str_P[isPVariant()]));
+  printf_P(PSTR( "CRC Length\t = "PRIPSTR"\r\n" ), pgm_read_word(&rf24_crclength_e_str_P[getCRCLength()]));
+  printf_P(PSTR( "PA Power\t = "PRIPSTR"\r\n" ),  pgm_read_word(&rf24_pa_dbm_e_str_P[getPALevel()]));
 
 }
 
@@ -541,7 +539,7 @@ void RF24::errNotify(){
 /******************************************************************/
 
 //Similar to the previous write, clears the interrupt flags
-bool RF24::write( const void* buf, uint8_t len, const bool multicast )
+bool RF24::write( const void* buf, uint8_t len, const bool multicast)
 {
 	//Start Writing
 	startFastWrite(buf,len,multicast);
@@ -578,7 +576,7 @@ bool RF24::write( const void* buf, uint8_t len, const bool multicast )
 }
 
 bool RF24::write( const void* buf, uint8_t len ){
-	return write(buf,len,0);
+	return write(buf,len,false);
 }
 /****************************************************************************/
 
@@ -610,7 +608,7 @@ bool RF24::writeBlocking( const void* buf, uint8_t len, uint32_t timeout )
   	}
 
   	//Start Writing
-	startFastWrite(buf,len,0);								  //Write the payload if a buffer is clear
+	startFastWrite(buf,len,true);								  //Write the payload if a buffer is clear
 
 	return 1;												  //Return 1 to indicate successful transmission
 }
@@ -1254,5 +1252,7 @@ void RF24::setRetries(uint8_t delay, uint8_t count)
  write_register(SETUP_RETR,(delay&0xf)<<ARD | (count&0xf)<<ARC);
 }
 
-RF24::RF24(RF24_IO io) : io(io) {
+/****************************************************************************/
+
+RF24::RF24(RF24_IO io) : io(io), p_variant(false), payload_size(32), dynamic_payloads_enabled(false), addr_width(5) {
 }

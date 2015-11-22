@@ -13,6 +13,7 @@ Rf24ChibiosIo::Rf24ChibiosIo(
 void Rf24ChibiosIo::begin() {
     // In Chibios we leave it to the library user to set the correct modes for all pins,
     // rather than having divided responsibility.
+    // spiStart(driver, config);
 }
 
 void Rf24ChibiosIo::beginTransaction() {
@@ -25,6 +26,7 @@ void Rf24ChibiosIo::endTransaction() {
 
 void Rf24ChibiosIo::select() {
     spiSelect(driver);
+    chThdSleepMicroseconds(5);
 }
 
 void Rf24ChibiosIo::unselect() {
@@ -37,15 +39,15 @@ uint8_t Rf24ChibiosIo::transfer(uint8_t tx) {
     return rx;
 }
 
-void Rf24ChibiosIo::transfernb(char* tbuf, char* rbuf, uint32_t len) {
-    spiExchange(driver, len, tbuf, rbuf);
+void Rf24ChibiosIo::transfernb(const uint8_t* tx, uint8_t* rx, uint32_t len) {
+    spiExchange(driver, len, tx, rx);
 }
 
-void Rf24ChibiosIo::transfern(char* buf, uint32_t len) {
+void Rf24ChibiosIo::transfern(const uint8_t* buf, uint32_t len) {
     spiSend(driver, len, buf);
 }
 
 void Rf24ChibiosIo::ce(bool level) {
-    palWritePad(ce_port, ce_pad, level);
+    palWritePad(ce_port, ce_pad, level ? PAL_HIGH : PAL_LOW);
 }
 

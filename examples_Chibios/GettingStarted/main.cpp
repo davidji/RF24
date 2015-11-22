@@ -21,7 +21,7 @@ static const SPIConfig rf24SpiConfig = {
         NULL,
         GPIOB,
         GPIOB_CS_SPI,
-        SPI_CR1_BR_0,
+        SPI_CR1_BR_1 | SPI_CR1_BR_0,
 };
 
 Rf24ChibiosIo radioIo(&SPID1, &rf24SpiConfig, GPIOB, GPIOB_RF24_CE);
@@ -46,6 +46,13 @@ void print(const char *msg) {
 
 void print(unsigned long value) {
 	chprintf(console, "%d", value);
+}
+
+void printf_P(const char *fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    chvprintf(console, fmt, ap);
+    va_end(ap);
 }
 
 unsigned long micros() {
@@ -73,8 +80,6 @@ void setup() {
 
   radio.setChannel(0x60);
 
-  // Start the radio listening for data
-  radio.startListening();
 }
 
 void ping() {
@@ -85,17 +90,18 @@ void ping() {
     println("Now sending");
 
     unsigned long time = micros();                             // Take the time, and send it.  This will block until complete
-     if (!radio.write( &time, sizeof(unsigned long) )){
-       println("failed");
-     }
+    if (!radio.write( &time, sizeof(time) )){
+        println("failed");
+    }
 
+    println("sent");
     radio.startListening();                                    // Now, continue listening
 
     unsigned long started_waiting_at = micros();               // Set up a timeout period, get the current microseconds
     bool timeout = false;                                   // Set up a variable to indicate if a response was received or not
 
     while ( ! radio.available() ){                             // While nothing is received
-      if (micros() - started_waiting_at > 200000 ){            // If waited longer than 200ms, indicate timeout and exit while loop
+      if (micros() - started_waiting_at > 200000){            // If waited longer than 200ms, indicate timeout and exit while loop
           timeout = true;
           break;
       }
@@ -105,7 +111,7 @@ void ping() {
         println("Failed, response timed out.");
     } else {
         unsigned long got_time;                                 // Grab the response, compare, and send to debugging spew
-        radio.read( &got_time, sizeof(unsigned long) );
+        radio.read( &got_time, sizeof(got_time) );
         unsigned long time = micros();
 
         // Spew it
@@ -129,11 +135,11 @@ void pong() {
     if (radio.available()) {
         // Variable for the received timestamp
         while (radio.available()) {                 // While there is data ready
-            radio.read(&got_time, sizeof(unsigned long));     // Get the payload
+            radio.read(&got_time, sizeof(got_time));     // Get the payload
         }
 
         radio.stopListening();           // First, stop listening so we can talk
-        radio.write(&got_time, sizeof(unsigned long)); // Send the final one back.
+        radio.write(&got_time, sizeof(got_time)); // Send the final one back.
         radio.startListening(); // Now, resume listening so we catch the next packets.
         print("Sent response ");
         print(got_time);
@@ -146,12 +152,19 @@ void pong() {
 class PingPongThread: public BaseStaticThread<1024> {
 protected:
     virtual void main(void) {
+        radio.startListening();
         while (true) {
-            if (role == 1) {
-                ping();
-            } else if (role == 0) {
+            while(role == 0) {
                 pong();
             }
+
+            println("*** CHANGING TO RECEIVE ROLE -- PRESS 'T' TO SWITCH BACK");
+
+            while(role == 1) {
+                ping();
+            }
+
+            println("*** CHANGING TO TRANSMIT ROLE -- PRESS 'R' TO SWITCH BACK");
         }
     }
 
@@ -164,15 +177,10 @@ public:
 void mode() {
     while (true) {
         char c = toupper(chSequentialStreamGet(console));
-        if (c == 'T' && role == 0) {
-            println(
-                    "*** CHANGING TO TRANSMIT ROLE -- PRESS 'R' TO SWITCH BACK");
-            role = 1;               // Become the primary transmitter (ping out)
-
-        } else if (c == 'R' && role == 1) {
-            println("*** CHANGING TO RECEIVE ROLE -- PRESS 'T' TO SWITCH BACK");
-            role = 0;                // Become the primary receiver (pong back)
-            radio.startListening();
+        if (c == 'T') {
+            role = 1;
+        } else if (c == 'R') {
+            role = 0;
         }
     }
 }
@@ -180,14 +188,10 @@ void mode() {
 static PingPongThread pingPong;
 
 void setupSpiPins() {
-    palSetPadMode(GPIOB, GPIOB_CS_SPI,
-            PAL_MODE_OUTPUT_PUSHPULL | PAL_STM32_OSPEED_HIGHEST);
-    palSetPadMode(GPIOA, GPIOA_SPC,
-            PAL_MODE_ALTERNATE(5) | PAL_STM32_OSPEED_HIGHEST);
-    palSetPadMode(GPIOA, GPIOA_SDO,
-            PAL_MODE_ALTERNATE(5) | PAL_STM32_OSPEED_HIGHEST);
-    palSetPadMode(GPIOA, GPIOA_SDI,
-            PAL_MODE_ALTERNATE(5) | PAL_STM32_OSPEED_HIGHEST);
+    palSetPadMode(GPIOB, GPIOB_CS_SPI, PAL_MODE_OUTPUT_PUSHPULL | PAL_STM32_OSPEED_HIGHEST);
+    palSetPadMode(GPIOA, GPIOA_SPC, PAL_MODE_ALTERNATE(5) | PAL_STM32_OSPEED_HIGHEST);
+    palSetPadMode(GPIOA, GPIOA_SDO, PAL_MODE_ALTERNATE(5) | PAL_STM32_OSPEED_HIGHEST);
+    palSetPadMode(GPIOA, GPIOA_SDI, PAL_MODE_ALTERNATE(5) | PAL_STM32_OSPEED_HIGHEST);
     palSetPad(GPIOB, GPIOB_CS_SPI);
 }
 
@@ -195,11 +199,13 @@ int main(void) {
     halInit();
     chSysInit();
 
+    palSetPadMode(GPIOB, GPIOB_RF24_CE, PAL_MODE_OUTPUT_PUSHPULL | PAL_STM32_OSPEED_HIGHEST);
     sdStart(&SD2, NULL);
 
     // Set up SPI pins
     setupSpiPins();
     setup();
+    radio.printDetails();
     pingPong.start(NORMALPRIO);
     mode();
 }

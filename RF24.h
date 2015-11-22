@@ -511,7 +511,7 @@ s   *
    * @param multicast Request ACK (0) or NOACK (1)
    * @return True if the payload was delivered successfully false if not
    */
-  void startFastWrite( const void* buf, uint8_t len, const bool multicast, bool startTx = 1 );
+  void startFastWrite( const void* buf, uint8_t len, const bool multicast, bool startTx = true );
 
   /**
    * Non-blocking write to the open writing pipe
