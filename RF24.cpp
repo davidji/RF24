@@ -1128,22 +1128,14 @@ bool RF24::setDataRate(rf24_datarate_e speed)
 
   // HIGH and LOW '00' is 1Mbs - our default
   setup &= ~(_BV(RF_DR_LOW) | _BV(RF_DR_HIGH)) ;
-  
-  #if defined(__arm__) || defined (RF24_LINUX) || defined (__ARDUINO_X86__)
-    txRxDelay=250;
-  #else //16Mhz Arduino
-    txRxDelay=85;
-  #endif
+  txRxDelay=250;
+
   if( speed == RF24_250KBPS )
   {
     // Must set the RF_DR_LOW to 1; RF_DR_HIGH (used to be RF_DR) is already 0
     // Making it '10'.
     setup |= _BV( RF_DR_LOW ) ;
-  #if defined(__arm__) || defined (RF24_LINUX) || defined (__ARDUINO_X86__)
     txRxDelay=450;
-  #else //16Mhz Arduino
-	txRxDelay=155;
-  #endif
   }
   else
   {
@@ -1152,11 +1144,7 @@ bool RF24::setDataRate(rf24_datarate_e speed)
     if ( speed == RF24_2MBPS )
     {
       setup |= _BV(RF_DR_HIGH);
-      #if defined(__arm__) || defined (RF24_LINUX) || defined (__ARDUINO_X86__)
       txRxDelay=190;
-      #else //16Mhz Arduino	  
-	  txRxDelay=65;
-	  #endif
     }
   }
   write_register(RF_SETUP,setup);
