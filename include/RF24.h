@@ -17,14 +17,6 @@
 
 #include "RF24_config.h"
 
-#if defined (RF24_LINUX)
-  #include "utility/includes.h"
-#elif defined(LITTLEWIRE)
-  #include <LittleWireSPI/LittleWireSPI.h>
-#elif defined(SOFTSPI)
-  #include <DigitalIO.h>
-#endif
-
 /**
  * Power Amplifier level.
  *

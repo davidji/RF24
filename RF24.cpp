@@ -362,10 +362,10 @@ void RF24::printDetails(void)
   print_byte_register(PSTR("CONFIG\t"),CONFIG);
   print_byte_register(PSTR("DYNPD/FEATURE"),DYNPD,2);
 
-  printf_P(PSTR( "Data Rate\t = "PRIPSTR"\r\n" ) ,pgm_read_word(&rf24_datarate_e_str_P[getDataRate()]));
-  printf_P(PSTR( "Model\t\t = "PRIPSTR"\r\n" ), pgm_read_word(&rf24_model_e_str_P[isPVariant()]));
-  printf_P(PSTR( "CRC Length\t = "PRIPSTR"\r\n" ), pgm_read_word(&rf24_crclength_e_str_P[getCRCLength()]));
-  printf_P(PSTR( "PA Power\t = "PRIPSTR"\r\n" ),  pgm_read_word(&rf24_pa_dbm_e_str_P[getPALevel()]));
+  printf_P(PSTR( "Data Rate\t = " PRIPSTR "\r\n" ) ,pgm_read_word(&rf24_datarate_e_str_P[getDataRate()]));
+  printf_P(PSTR( "Model\t\t = " PRIPSTR "\r\n" ), pgm_read_word(&rf24_model_e_str_P[isPVariant()]));
+  printf_P(PSTR( "CRC Length\t = " PRIPSTR "\r\n" ), pgm_read_word(&rf24_crclength_e_str_P[getCRCLength()]));
+  printf_P(PSTR( "PA Power\t = " PRIPSTR "\r\n" ),  pgm_read_word(&rf24_pa_dbm_e_str_P[getPALevel()]));
 
 }
 
@@ -378,6 +378,7 @@ bool RF24::begin(void)
   uint8_t setup=0;
 
   io.begin();
+  io.ce(LOW);
 
   // Must allow the radio time to settle else configuration bits will not necessarily stick.
   // This is actually only required following power up but some settling time also appears to
@@ -449,27 +450,27 @@ bool RF24::begin(void)
 
 void RF24::startListening(void)
 {
- #if !defined (RF24_TINY) && ! defined(LITTLEWIRE)
-  powerUp();
- #endif
-  write_register(CONFIG, read_register(CONFIG) | _BV(PRIM_RX));
-  write_register(NRF_STATUS, _BV(RX_DR) | _BV(TX_DS) | _BV(MAX_RT) );
-  io.ce(HIGH);
-  // Restore the pipe0 adddress, if exists
-  if (pipe0_reading_address[0] > 0){
-    write_register(RX_ADDR_P0, pipe0_reading_address, addr_width);	
-  }else{
-	closeReadingPipe(0);
-  }
+#if !defined (RF24_TINY) && ! defined(LITTLEWIRE)
+    powerUp();
+#endif
+    write_register(CONFIG, read_register(CONFIG) | _BV(PRIM_RX));
+    write_register(NRF_STATUS, _BV(RX_DR) | _BV(TX_DS) | _BV(MAX_RT) );
+    io.ce(HIGH);
+    // Restore the pipe0 adddress, if exists
+    if (pipe0_reading_address[0] > 0){
+        write_register(RX_ADDR_P0, pipe0_reading_address, addr_width);
+    }else{
+        closeReadingPipe(0);
+    }
 
-  // Flush buffers
-  //flush_rx();
-  if(read_register(FEATURE) & _BV(EN_ACK_PAY)){
-	flush_tx();
-  }
+    // Flush buffers
+    //flush_rx();
+    if(read_register(FEATURE) & _BV(EN_ACK_PAY)){
+        flush_tx();
+    }
 
-  // Go!
-  //delayMicroseconds(100);
+    // Go!
+    //delayMicroseconds(100);
 }
 
 /****************************************************************************/
@@ -479,20 +480,20 @@ static const uint8_t child_pipe_enable[] PROGMEM =
 };
 
 void RF24::stopListening(void)
-{  
-  io.ce(LOW);
+{
+    io.ce(LOW);
 
-  delayMicroseconds(txRxDelay);
-  
-  if(read_register(FEATURE) & _BV(EN_ACK_PAY)){
-    delayMicroseconds(txRxDelay); //200
-	flush_tx();
-  }
-  //flush_rx();
-  write_register(CONFIG, ( read_register(CONFIG) ) & ~_BV(PRIM_RX) );
- 
-  write_register(EN_RXADDR,read_register(EN_RXADDR) | _BV(pgm_read_byte(&child_pipe_enable[0]))); // Enable RX on pipe0
-  
+    delayMicroseconds(txRxDelay);
+
+    if(read_register(FEATURE) & _BV(EN_ACK_PAY)){
+        delayMicroseconds(txRxDelay); //200
+        flush_tx();
+    }
+
+    //flush_rx();
+    write_register(CONFIG, ( read_register(CONFIG) ) & ~_BV(PRIM_RX) );
+
+    write_register(EN_RXADDR,read_register(EN_RXADDR) | _BV(pgm_read_byte(&child_pipe_enable[0]))); // Enable RX on pipe0
   //delayMicroseconds(100);
 
 }

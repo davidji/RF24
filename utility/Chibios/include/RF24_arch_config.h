@@ -67,23 +67,21 @@ static inline uint8_t pgm_read_byte(const uint8_t *p) {
 }
 
 static inline void delay(uint32_t milisec) {
-	chThdSleepMilliseconds(milisec);
+    chThdSleepMilliseconds(milisec);
 }
 
 static inline void delayMicroseconds(uint32_t usec) {
-	chThdSleepMicroseconds(usec);
+    chThdSleepMicroseconds(usec);
 }
 
 static inline long millis() {
-	return ST2MS(chVTGetSystemTime());
+    return ST2MS(chVTGetSystemTime());
 }
 
 extern void printf_P(const char *fmt, ...);
 
 #define LOW PAL_LOW
 #define HIGH PAL_HIGH
-#define INPUT PAL_MODE_INPUT
-#define OUTPUT PAL_MODE_OUTPUT_PUSHPULL
 
 #endif // __ARCH_CONFIG_H__
 

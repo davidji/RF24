@@ -17,6 +17,8 @@ bool radioNumber = 0;
 #define GPIOA_SDO                   6
 #define GPIOA_SDI                   7
 
+#define CHANNEL 0x55
+
 static const SPIConfig rf24SpiConfig = {
         NULL,
         GPIOB,
@@ -63,23 +65,26 @@ void setup() {
   println("RF24/examples/GettingStarted");
   println("*** PRESS 'T' to begin transmitting to the other node");
 
-  radio.begin();
+  print("radio begin...");
+  if(!radio.begin()) {
 
-  // Set the PA Level low to prevent power supply related issues since this is a
-  // getting_started sketch, and the likelihood of close proximity of the devices. RF24_PA_MAX is default.
-  radio.setPALevel(RF24_PA_LOW);
+      // Set the PA Level low to prevent power supply related issues since this is a
+      // getting_started sketch, and the likelihood of close proximity of the devices. RF24_PA_MAX is default.
+      radio.setPALevel(RF24_PA_LOW);
 
-  // Open a writing and reading pipe on each radio, with opposite addresses
-  if(radioNumber){
-    radio.openWritingPipe(addresses[1]);
-    radio.openReadingPipe(1,addresses[0]);
-  }else{
-    radio.openWritingPipe(addresses[0]);
-    radio.openReadingPipe(1,addresses[1]);
+      // Open a writing and reading pipe on each radio, with opposite addresses
+      if(radioNumber){
+          radio.openWritingPipe(addresses[1]);
+          radio.openReadingPipe(1,addresses[0]);
+      }else{
+          radio.openWritingPipe(addresses[0]);
+          radio.openReadingPipe(1,addresses[1]);
+      }
+
+      // radio.setChannel(CHANNEL);
+  } else {
+      println("failed");
   }
-
-  radio.setChannel(0x60);
-
 }
 
 void ping() {
@@ -146,7 +151,7 @@ void pong() {
         println("");
     }
 
-    chThdSleepMilliseconds(1);
+    chThdSleepMicroseconds(100);
 }
 
 class PingPongThread: public BaseStaticThread<1024> {
