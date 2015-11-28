@@ -1,13 +1,11 @@
 
 /**
- * @file spi.h
- * Class declaration for SPI helper files
+ * @file rf24-chibios-io.h
+ * IO primitives for Chibios port
  */
 #ifndef _RF24_CHIBIOS_IO_H_
 #define _RF24_CHIBIOS_IO_H_
  /**
- * Example of spi.h class declaration for SPI portability
- *
  * @defgroup Porting_SPI Porting: SPI
  *
  * 

@@ -34,9 +34,9 @@
 #include "rf24-chibios-io.h"
 
 #define RF24_IO Rf24ChibiosIo
+#define RF24_FAST_TIMING
 
 #define _BV(x) (1<<(x))
-#define RF24_SPI spi
 
 #undef SERIAL_DEBUG
 #ifdef SERIAL_DEBUG

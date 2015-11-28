@@ -1,5 +1,5 @@
 
-SUBDIRS = examples_Chibios/GettingStarted
+SUBDIRS = examples_Chibios/GettingStarted examples_Chibios/Stream
 
 all: $(SUBDIRS)
 $(SUBDIRS):

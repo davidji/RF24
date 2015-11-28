@@ -1128,24 +1128,23 @@ bool RF24::setDataRate(rf24_datarate_e speed)
 
   // HIGH and LOW '00' is 1Mbs - our default
   setup &= ~(_BV(RF_DR_LOW) | _BV(RF_DR_HIGH)) ;
-  txRxDelay=250;
 
   if( speed == RF24_250KBPS )
   {
     // Must set the RF_DR_LOW to 1; RF_DR_HIGH (used to be RF_DR) is already 0
     // Making it '10'.
     setup |= _BV( RF_DR_LOW ) ;
-    txRxDelay=450;
+    txRxDelay=RF24_250KBPS_TX_RX_DELAY;
   }
-  else
+  else if ( speed == RF24_2MBPS )
   {
-    // Set 2Mbs, RF_DR (RF_DR_HIGH) is set 1
-    // Making it '01'
-    if ( speed == RF24_2MBPS )
-    {
-      setup |= _BV(RF_DR_HIGH);
-      txRxDelay=190;
-    }
+     // Set 2Mbs, RF_DR (RF_DR_HIGH) is set 1
+     // Making it '01'
+     setup |= _BV(RF_DR_HIGH);
+     txRxDelay=RF24_2MBPS_TX_RX_DELAY;
+  }
+  else {
+      txRxDelay=RF24_1MBPS_TX_RX_DELAY;
   }
   write_register(RF_SETUP,setup);
 

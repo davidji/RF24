@@ -28,5 +28,15 @@
 
 #include <RF24_arch_config.h>
 
+#ifndef RF24_250KBPS_TX_RX_DELAY
+#define RF24_250KBPS_TX_RX_DELAY 450
+#endif
+#ifndef RF24_1MBPS_TX_RX_DELAY
+#define RF24_1MBPS_TX_RX_DELAY 250
+#endif
+#ifndef RF24_2MBPS_TX_RX_DELAY
+#define RF24_2MBPS_TX_RX_DELAY 190
+#endif
+
 #endif // __RF24_CONFIG_H__
 
