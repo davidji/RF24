@@ -44,8 +44,15 @@ void RF24Serial::print(const char* fmt, ...) {
 }
 
 RF24Serial::RF24Serial(RF24& rf24) : BaseStaticThread<512>(), vmt(&VMT), radio(rf24) {
-    for(int i = 0; i != PACKET_COUNT; ++i) {
+    transmit_packet = transmit_buffer[0];
+
+    transmit_pos = 0;
+    for(int i = 1; i < PACKET_COUNT; ++i) {
         transmit_free.post(transmit_buffer[i], TIME_IMMEDIATE);
+    }
+
+    receive_pos = PACKET_SIZE;
+    for(int i = 0; i < PACKET_COUNT; ++i) {
         receive_free.post(receive_buffer[i], TIME_IMMEDIATE);
     }
 }
@@ -64,7 +71,7 @@ void RF24Serial::main() {
 
         if(transmit_queue.fetch(&packet, MS2ST(4)) == MSG_OK) {
             radio.stopListening();
-            radio.write(packet, PACKET_SIZE);
+            radio.writeFast(packet, PACKET_SIZE);
             radio.startListening();
             transmit_free.post(packet, TIME_IMMEDIATE);
         }
@@ -96,7 +103,7 @@ size_t RF24Serial::read(uint8_t* bp, size_t n) {
 msg_t RF24Serial::pull_if_needed() {
     msg_t result = MSG_OK;
     if(receive_empty()) {
-        result = transmit_queue.fetch(&receive_packet, TIME_INFINITE);
+        result = receive_queue.fetch(&receive_packet, TIME_INFINITE);
         if(result == MSG_OK) {
             receive_pos = 0;
         }
@@ -111,7 +118,7 @@ msg_t RF24Serial::free_receive_packet() {
         result = receive_free.post(receive_packet, TIME_IMMEDIATE);
         if(result == MSG_OK) {
             receive_pos = PACKET_SIZE;
-            receive_packet == NULL;
+            receive_packet = NULL;
         }
     }
 

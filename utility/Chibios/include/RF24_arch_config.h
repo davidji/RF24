@@ -31,7 +31,7 @@
 #include <string.h>
 #include "ch.h"
 #include "hal.h"
-#include "rf24-chibios-io.h"
+#include "rf24_chibios_io.h"
 
 #define RF24_IO Rf24ChibiosIo
 #define RF24_FAST_TIMING

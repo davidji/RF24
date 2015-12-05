@@ -1,5 +1,5 @@
 
-#include "rf24-arduino-spi.h"
+#include "rf24-arduino-io.h"
 
 RF24ArduinoSpi::RF24ArduinoSpi(int csn) : csn(csn) {
 }

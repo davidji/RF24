@@ -28,7 +28,7 @@
 #ifndef _HALCONF_H_
 #define _HALCONF_H_
 
-#include "mcuconf.h"
+#include "../../Chibios/Stream/mcuconf.h"
 
 /**
  * @brief   Enables the PAL subsystem.

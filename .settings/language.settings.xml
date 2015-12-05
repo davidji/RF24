@@ -2,7 +2,7 @@
 <project>
 	<configuration id="ilg.gnuarmeclipse.managedbuild.cross.toolchain.base.862960232" name="Default">
 		<extension point="org.eclipse.cdt.core.LanguageSettingsProvider">
-			<provider class="org.eclipse.cdt.managedbuilder.language.settings.providers.GCCBuildCommandParser" id="org.eclipse.cdt.managedbuilder.core.GCCBuildCommandParser" keep-relative-paths="false" name="CDT GCC Build Output Parser" parameter="arm-none-eabi-(gcc)|([gc]\+\+)|(clang)" prefer-non-shared="true" resource-scope="per-folder" store-entries-with-project="true">
+			<provider class="org.eclipse.cdt.managedbuilder.language.settings.providers.GCCBuildCommandParser" id="org.eclipse.cdt.managedbuilder.core.GCCBuildCommandParser" keep-relative-paths="false" name="CDT GCC Build Output Parser" parameter="(arm-none-eabi-)?(gcc)|([gc]\+\+)|(clang)" prefer-non-shared="true" resource-scope="per-folder" store-entries-with-project="true">
 				<language id="org.eclipse.cdt.core.gcc">
 					<resource project-relative-path="">
 						<entry kind="includePath" name="/${ProjName}/">
@@ -348,7 +348,7 @@
 						<entry kind="includePath" name="/${ProjName}/utility/Chibios/include">
 							<flag value="VALUE_WORKSPACE_PATH"/>
 						</entry>
-						<entry kind="includePath" name="/${ProjName}/examples_Chibios/Stream">
+						<entry kind="includePath" name="/${ProjName}/examples/Chibios/Stream">
 							<flag value="VALUE_WORKSPACE_PATH"/>
 						</entry>
 						<entry kind="macro" name="CORTEX_USE_FPU" value="FALSE"/>
@@ -782,7 +782,7 @@
 						<entry kind="includePath" name="/${ProjName}/utility/Chibios/include">
 							<flag value="VALUE_WORKSPACE_PATH"/>
 						</entry>
-						<entry kind="includePath" name="/${ProjName}/examples_Chibios/Stream">
+						<entry kind="includePath" name="/${ProjName}/examples/Chibios/Stream">
 							<flag value="VALUE_WORKSPACE_PATH"/>
 						</entry>
 						<entry kind="macro" name="CORTEX_USE_FPU" value="FALSE"/>
@@ -1130,7 +1130,7 @@
 						<entry kind="includePath" name="/${ProjName}/utility/Chibios/include">
 							<flag value="VALUE_WORKSPACE_PATH"/>
 						</entry>
-						<entry kind="includePath" name="/${ProjName}/examples_Chibios/Stream">
+						<entry kind="includePath" name="/${ProjName}/examples/Chibios/Stream">
 							<flag value="VALUE_WORKSPACE_PATH"/>
 						</entry>
 						<entry kind="macro" name="CORTEX_USE_FPU" value="FALSE"/>
@@ -1392,7 +1392,7 @@
 						<entry kind="includePath" name="/${ProjName}/utility/Chibios/include">
 							<flag value="VALUE_WORKSPACE_PATH"/>
 						</entry>
-						<entry kind="includePath" name="/${ProjName}/examples_Chibios/Stream">
+						<entry kind="includePath" name="/${ProjName}/examples/Chibios/Stream">
 							<flag value="VALUE_WORKSPACE_PATH"/>
 						</entry>
 						<entry kind="macro" name="CORTEX_USE_FPU" value="FALSE"/>
@@ -1998,7 +1998,7 @@
 						<entry kind="includePath" name="/${ProjName}/utility/Chibios/include">
 							<flag value="VALUE_WORKSPACE_PATH"/>
 						</entry>
-						<entry kind="includePath" name="/${ProjName}/examples_Chibios/Stream">
+						<entry kind="includePath" name="/${ProjName}/examples/Chibios/Stream">
 							<flag value="VALUE_WORKSPACE_PATH"/>
 						</entry>
 						<entry kind="macro" name="CORTEX_USE_FPU" value="FALSE"/>
@@ -2174,7 +2174,7 @@
 						<entry kind="includePath" name="/${ProjName}/utility/Chibios/include">
 							<flag value="VALUE_WORKSPACE_PATH"/>
 						</entry>
-						<entry kind="includePath" name="/${ProjName}/examples_Chibios/Stream">
+						<entry kind="includePath" name="/${ProjName}/examples/Chibios/Stream">
 							<flag value="VALUE_WORKSPACE_PATH"/>
 						</entry>
 						<entry kind="macro" name="CORTEX_USE_FPU" value="FALSE"/>
@@ -2952,7 +2952,7 @@
 						<entry kind="includePath" name="/${ProjName}/utility/Chibios/include">
 							<flag value="VALUE_WORKSPACE_PATH"/>
 						</entry>
-						<entry kind="includePath" name="/${ProjName}/examples_Chibios/Stream">
+						<entry kind="includePath" name="/${ProjName}/examples/Chibios/Stream">
 							<flag value="VALUE_WORKSPACE_PATH"/>
 						</entry>
 						<entry kind="macro" name="CORTEX_USE_FPU" value="FALSE"/>
@@ -3042,7 +3042,7 @@
 						<entry kind="includePath" name="/${ProjName}/utility/Chibios/include">
 							<flag value="VALUE_WORKSPACE_PATH"/>
 						</entry>
-						<entry kind="includePath" name="/${ProjName}/examples_Chibios/Stream">
+						<entry kind="includePath" name="/${ProjName}/examples/Chibios/Stream">
 							<flag value="VALUE_WORKSPACE_PATH"/>
 						</entry>
 						<entry kind="macro" name="CORTEX_USE_FPU" value="FALSE"/>
@@ -3648,7 +3648,7 @@
 						<entry kind="includePath" name="/${ProjName}/utility/Chibios/include">
 							<flag value="VALUE_WORKSPACE_PATH"/>
 						</entry>
-						<entry kind="includePath" name="/${ProjName}/examples_Chibios/Stream">
+						<entry kind="includePath" name="/${ProjName}/examples/Chibios/Stream">
 							<flag value="VALUE_WORKSPACE_PATH"/>
 						</entry>
 						<entry kind="macro" name="CORTEX_USE_FPU" value="FALSE"/>
@@ -3738,7 +3738,7 @@
 						<entry kind="includePath" name="/${ProjName}/utility/Chibios/include">
 							<flag value="VALUE_WORKSPACE_PATH"/>
 						</entry>
-						<entry kind="includePath" name="/${ProjName}/examples_Chibios/Stream">
+						<entry kind="includePath" name="/${ProjName}/examples/Chibios/Stream">
 							<flag value="VALUE_WORKSPACE_PATH"/>
 						</entry>
 						<entry kind="macro" name="CORTEX_USE_FPU" value="FALSE"/>
@@ -3914,7 +3914,7 @@
 						<entry kind="includePath" name="/${ProjName}/utility/Chibios/include">
 							<flag value="VALUE_WORKSPACE_PATH"/>
 						</entry>
-						<entry kind="includePath" name="/${ProjName}/examples_Chibios/Stream">
+						<entry kind="includePath" name="/${ProjName}/examples/Chibios/Stream">
 							<flag value="VALUE_WORKSPACE_PATH"/>
 						</entry>
 						<entry kind="macro" name="CORTEX_USE_FPU" value="FALSE"/>
@@ -4090,7 +4090,7 @@
 						<entry kind="includePath" name="/${ProjName}/utility/Chibios/include">
 							<flag value="VALUE_WORKSPACE_PATH"/>
 						</entry>
-						<entry kind="includePath" name="/${ProjName}/examples_Chibios/Stream">
+						<entry kind="includePath" name="/${ProjName}/examples/Chibios/Stream">
 							<flag value="VALUE_WORKSPACE_PATH"/>
 						</entry>
 						<entry kind="macro" name="CORTEX_USE_FPU" value="FALSE"/>
@@ -4610,7 +4610,7 @@
 						<entry kind="includePath" name="/${ProjName}/utility/Chibios/include">
 							<flag value="VALUE_WORKSPACE_PATH"/>
 						</entry>
-						<entry kind="includePath" name="/${ProjName}/examples_Chibios/Stream">
+						<entry kind="includePath" name="/${ProjName}/examples/Chibios/Stream">
 							<flag value="VALUE_WORKSPACE_PATH"/>
 						</entry>
 						<entry kind="macro" name="CORTEX_USE_FPU" value="FALSE"/>

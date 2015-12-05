@@ -2,7 +2,6 @@
 #define __ARCH_CONFIG_H__
 
   #include "mraa.h"
-  #include "spi.h"
   #include "gpio.h"
   #include "compatibility.h"
 
@@ -15,6 +14,7 @@
   #include <iostream>
   #include <unistd.h>
   #include <stdlib.h>
+#include "rf24_mraa_io.h"
   
   //#include <UtilTime.h> // Precompiled arduino x86 based utiltime for timing functions
 

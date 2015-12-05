@@ -1,5 +1,5 @@
 
-#include "rf24-chibios-io.h"
+#include "rf24_chibios_io.h"
 
 Rf24ChibiosIo::Rf24ChibiosIo(
         SPIDriver* driver,

@@ -19,6 +19,10 @@ bool radioNumber = 0;
 
 #define CHANNEL 0x55
 
+static const SerialConfig consoleConfig = {
+        230400, 0, 0, 0
+};
+
 static const SPIConfig rf24SpiConfig = {
         NULL,
         GPIOB,
@@ -205,7 +209,7 @@ int main(void) {
     chSysInit();
 
     palSetPadMode(GPIOB, GPIOB_RF24_CE, PAL_MODE_OUTPUT_PUSHPULL | PAL_STM32_OSPEED_HIGHEST);
-    sdStart(&SD2, NULL);
+    sdStart(&SD2, &consoleConfig);
 
     // Set up SPI pins
     setupSpiPins();

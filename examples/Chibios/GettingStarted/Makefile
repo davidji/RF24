@@ -83,11 +83,11 @@ endif
 #
 
 # Define project name here
-PROJECT = stream
+PROJECT = getting-started
 
 # Imported source files and paths
 CHIBIOS = /home/david/src/chibios.org/chibios
-RF24 = $(realpath ../..)
+RF24 = $(realpath ../../..)
 
 # Startup files.
 include $(CHIBIOS)/os/common/ports/ARMCMx/compilers/GCC/mk/startup_stm32f4xx.mk
@@ -115,11 +115,11 @@ CSRC = $(STARTUPSRC) \
        $(HALSRC) \
        $(PLATFORMSRC) \
        $(BOARDSRC) \
-       $(CHIBIOS)/os/hal/lib/streams/chprintf.c
+       $(CHIBIOS)/os/hal/lib/streams/chprintf.c 
 
 # C++ sources that can be compiled in ARM or THUMB mode depending on the global
 # setting.
-CPPSRC = $(CHCPPSRC) $(RF24SRC) $(RF24)/utility/rf24_serial.cpp stream.cpp
+CPPSRC = $(CHCPPSRC) $(RF24SRC) gettingstarted.cpp
 
 # C sources to be compiled in ARM mode regardless of the global setting.
 # NOTE: Mixing ARM and THUMB mode enables the -mthumb-interwork compiler

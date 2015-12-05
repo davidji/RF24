@@ -26,8 +26,8 @@ private:
     uint8_t transmit_buffer[PACKET_COUNT][PACKET_SIZE];
     Mailbox<packet_t, PACKET_COUNT> transmit_free;
     Mailbox<packet_t, PACKET_COUNT> transmit_queue;
-    packet_t transmit_packet = NULL;
-    uint8_t transmit_pos = PACKET_SIZE;
+    packet_t transmit_packet;
+    uint8_t transmit_pos = 0;
 
     // -------------------------------------------------------------
     // Receive state
