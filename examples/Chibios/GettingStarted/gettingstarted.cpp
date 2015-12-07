@@ -11,11 +11,11 @@ using namespace chibios_rt;
 /***      Set this radio as radio number 0 or 1         ***/
 bool radioNumber = 0;
 
-#define GPIOB_CS_SPI                4
-#define GPIOB_RF24_CE               5
-#define GPIOA_SPC                   5
-#define GPIOA_SDO                   6
-#define GPIOA_SDI                   7
+#define GPIOB_CS_SPI                13
+#define GPIOB_RF24_CE               14
+#define GPIOB_SPC                   3
+#define GPIOB_SDI                   4
+#define GPIOB_SDO                   5
 
 #define CHANNEL 0x55
 
@@ -32,6 +32,7 @@ static const SPIConfig rf24SpiConfig = {
 
 Rf24ChibiosIo radioIo(&SPID1, &rf24SpiConfig, GPIOB, GPIOB_RF24_CE);
 RF24 radio(radioIo);
+
 
 /**********************************************************/
 
@@ -85,7 +86,7 @@ void setup() {
           radio.openReadingPipe(1,addresses[1]);
       }
 
-      // radio.setChannel(CHANNEL);
+      radio.setChannel(CHANNEL);
   } else {
       println("failed");
   }
@@ -198,9 +199,9 @@ static PingPongThread pingPong;
 
 void setupSpiPins() {
     palSetPadMode(GPIOB, GPIOB_CS_SPI, PAL_MODE_OUTPUT_PUSHPULL | PAL_STM32_OSPEED_HIGHEST);
-    palSetPadMode(GPIOA, GPIOA_SPC, PAL_MODE_ALTERNATE(5) | PAL_STM32_OSPEED_HIGHEST);
-    palSetPadMode(GPIOA, GPIOA_SDO, PAL_MODE_ALTERNATE(5) | PAL_STM32_OSPEED_HIGHEST);
-    palSetPadMode(GPIOA, GPIOA_SDI, PAL_MODE_ALTERNATE(5) | PAL_STM32_OSPEED_HIGHEST);
+    palSetPadMode(GPIOB, GPIOB_SPC, PAL_MODE_ALTERNATE(5) | PAL_STM32_OSPEED_HIGHEST);
+    palSetPadMode(GPIOB, GPIOB_SDO, PAL_MODE_ALTERNATE(5) | PAL_STM32_OSPEED_HIGHEST);
+    palSetPadMode(GPIOB, GPIOB_SDI, PAL_MODE_ALTERNATE(5) | PAL_STM32_OSPEED_HIGHEST);
     palSetPad(GPIOB, GPIOB_CS_SPI);
 }
 
