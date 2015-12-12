@@ -40,6 +40,7 @@ RF24Serial::RF24Serial(RF24& rf24) : vmt(&VMT), radio(rf24), radioThread(NULL) {
 }
 
 static void radio_thread_start(void *instance) {
+    chRegSetThreadName("rf24serial");
     rf24(instance)->main();
 }
 
@@ -76,6 +77,17 @@ void RF24Serial::print(const char* fmt, ...) {
     va_end(ap);
 }
 
+bool RF24Serial::receive_available() {
+    bool result = false;
+    if(radio.available()) {
+        chSysLock();
+        result = receive_queue.getFreeCountI() > 0;
+        chSysUnlock();
+    }
+
+    return result;
+}
+
 void RF24Serial::main() {
     packet_t packet;
 
@@ -83,26 +95,27 @@ void RF24Serial::main() {
 
     while(!chThdShouldTerminateX()) {
 
-        while (radio.available() && receive_queue.getFreeCountI() > 0) {
+        while (receive_available()) {
             packet = get_packet();
             radio.read(packet, PACKET_SIZE);
             receive_queue.post(packet, TIME_IMMEDIATE);
         }
 
+        {
+            packet_t current, next;
+            if(transmit_queue.fetch(&current, MS2ST(4)) == MSG_OK) {
+                radio.stopListening();
+                while(transmit_queue.fetch(&next, TIME_IMMEDIATE) == MSG_OK) {
+                    radio.writeFast(current, PACKET_SIZE);
+                    free_packet(current);
+                    current = next;
+                }
 
-        switch(transmit_queue.fetch(&packet, MS2ST(4))) {
-        case MSG_OK:
-            radio.stopListening();
-            radio.writeFast(packet, PACKET_SIZE);
-            radio.startListening();
-            free_packet(packet);
-            break;
-        case MSG_TIMEOUT:
-            break;
-        case MSG_RESET:
-            return;
+                radio.write(current, PACKET_SIZE);
+                free_packet(current);
+                radio.startListening();
+            }
         }
-
     }
 }
 
@@ -150,19 +163,19 @@ void RF24Serial::receive_free_packet_if_empty() {
 }
 
 msg_t RF24Serial::flush(void) {
-    msg_t result = Q_OK;
     if(state != State::READY) {
         return Q_RESET;
     } else if(transmit_pos > 0) {
         for(; transmit_pos != PACKET_SIZE; ++transmit_pos) transmit_packet[transmit_pos] = 0;
-        result = transmit_queue.post(transmit_packet, TIME_INFINITE);
-        if(result == MSG_OK) {
+        if(transmit_queue.post(transmit_packet, TIME_INFINITE) == MSG_OK) {
             transmit_packet = get_packet();
             transmit_pos = 0;
+        } else {
+            return Q_RESET;
         }
     }
 
-    return result;
+    return Q_OK;
 }
 
 msg_t RF24Serial::put(uint8_t b) {
@@ -189,8 +202,15 @@ size_t RF24Serial::write(const uint8_t *bp, size_t n) {
     return written;
 }
 
+bool RF24Serial::transmit_idle() {
+    chSysLock();
+    bool result = transmit_queue.getFreeCountI() < 0;
+    chSysUnlock();
+    return result;
+}
+
 msg_t RF24Serial::flush_if_full_or_ready() {
-    if(transmit_pos == PACKET_SIZE || transmit_queue.getFreeCountI() < 0) {
+    if(transmit_pos == PACKET_SIZE || transmit_idle()) {
         return flush();
     } else {
         return Q_OK;
@@ -218,4 +238,3 @@ void RF24Serial::set_error(Error _error) {
 
 }
 }
-

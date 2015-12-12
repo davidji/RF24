@@ -76,11 +76,14 @@ void setup() {
       // Set the PA Level low to prevent power supply related issues since this is a
       // getting_started sketch, and the likelihood of close proximity of the devices. RF24_PA_MAX is default.
       radio.setPALevel(RF24_PA_LOW);
+      radio.setDataRate(RF24_1MBPS);
+      radio.setAutoAck(true);
+      radio.setRetries(2,15);
+      radio.setChannel(CHANNEL);
 
       radio.openWritingPipe(addresses[0]);
       radio.openReadingPipe(1,addresses[1]);
 
-      // radio.setChannel(CHANNEL);
   } else {
       println("failed");
   }
@@ -101,7 +104,6 @@ private:
 protected:
     virtual void main(void) {
         uint8_t buffer[256];
-        println("Relay");
         while(true) {
             size_t read = chSequentialStreamRead(in, buffer, sizeof(buffer));
             if(read > 0) {
@@ -120,7 +122,6 @@ public:
 
 void blink() {
     while (true) {
-        println("Blink");
         palClearPad(GPIOA, GPIOA_LED_GREEN);
         chThdSleepMilliseconds(500);
         palSetPad(GPIOA, GPIOA_LED_GREEN);
@@ -128,7 +129,23 @@ void blink() {
     }
 }
 
-RelayThread send(console, remote.stream());
+class SendThread : public BaseStaticThread<1024> {
+protected:
+    virtual void main(void) {
+        int counter = 0;
+        while(true) {
+            remote.print("ABCDEFGHIJKLMNOPQRSTUVWXYZ%5d\n", counter);
+            chThdSleepMilliseconds(20);
+            print("sent "); print(counter++); println("");
+        }
+    }
+
+public:
+    SendThread() : BaseStaticThread<1024>() { }
+};
+
+// RelayThread send(console, remote.stream());
+SendThread send;
 RelayThread recv(remote.stream(), console);
 
 int main(void) {

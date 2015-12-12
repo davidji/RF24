@@ -45,7 +45,7 @@ private:
     memory_pool_t packets;
 
     // The radio IO thread
-    THD_WORKING_AREA(wa, 1024);
+    THD_WORKING_AREA(wa, 256);
     ThreadReference radioThread;
 
     // -------------------------------------------------------------
@@ -82,6 +82,7 @@ private:
 
     // -------------------------------------------------------------
     // Transmit private methods
+    bool transmit_idle();
     msg_t flush_if_full_or_ready();
     size_t append(const uint8_t *bp, size_t n);
 
@@ -91,6 +92,7 @@ private:
         return receive_pos == PACKET_SIZE ? true : receive_packet[receive_pos] == '\0';
     }
 
+    bool receive_available();
     msg_t receive_ensure_available();
     void receive_free_packet_if_empty();
 
