@@ -625,6 +625,12 @@ void RF24::reUseTX(){
 
 /****************************************************************************/
 
+bool RF24::txFifoFull(void) {
+    return get_status()  & _BV(TX_FULL);
+}
+
+/****************************************************************************/
+
 bool RF24::writeFast( const void* buf, uint8_t len, const bool multicast )
 {
 	//Block until the FIFO is NOT full.
@@ -636,7 +642,7 @@ bool RF24::writeFast( const void* buf, uint8_t len, const bool multicast )
 		uint32_t timer = millis();
 	#endif
 	
-	while( ( get_status()  & ( _BV(TX_FULL) ))) {			  //Blocking only if FIFO is full. This will loop and block until TX is successful or fail
+	while(txFifoFull()) {			  //Blocking only if FIFO is full. This will loop and block until TX is successful or fail
 
 		if( get_status() & _BV(MAX_RT)){
 			//reUseTX();										  //Set re-transmit
@@ -648,7 +654,7 @@ bool RF24::writeFast( const void* buf, uint8_t len, const bool multicast )
 			if(millis() - timer > 85 ){			
 				errNotify();
 				#if defined (FAILURE_HANDLING)
-				return 0;							
+				return 0;
 				#endif
 			}
 		#endif
@@ -704,6 +710,18 @@ void RF24::startWrite( const void* buf, uint8_t len, const bool multicast ){
 bool RF24::rxFifoFull(){
 	return read_register(FIFO_STATUS) & _BV(RX_FULL);
 }
+
+/****************************************************************************/
+
+bool RF24::txFifoEmpty(){
+    return read_register(FIFO_STATUS) & _BV(TX_EMPTY);
+}
+
+void RF24::txFlushFailure() {
+    write_register(NRF_STATUS,_BV(MAX_RT) );
+    io.ce(LOW);
+    flush_tx();    //Non blocking, flush the data
+}
 /****************************************************************************/
 
 bool RF24::txStandBy(){
@@ -711,12 +729,13 @@ bool RF24::txStandBy(){
     #if defined (FAILURE_HANDLING) || defined (RF24_LINUX)
 		uint32_t timeout = millis();
 	#endif
-	while( ! (read_register(FIFO_STATUS) & _BV(TX_EMPTY)) ){
-		if( get_status() & _BV(MAX_RT)){
-			write_register(NRF_STATUS,_BV(MAX_RT) );
-			io.ce(LOW);
-			flush_tx();    //Non blocking, flush the data
-			return 0;
+	// The following roughtly translates to:
+	// while there's no the TX FIFO is not empty, check
+	// if the latest message is a failure and if it is, flush it.
+	while(!txFifoEmpty()) {
+		if( get_status() & _BV(MAX_RT)) {
+		    txFlushFailure();
+			return false;
 		}
 		#if defined (FAILURE_HANDLING) || defined (RF24_LINUX)
 			if( millis() - timeout > 85){
@@ -729,7 +748,7 @@ bool RF24::txStandBy(){
 	}
 
 	io.ce(LOW);			   //Set STANDBY-I mode
-	return 1;
+	return true;
 }
 
 /****************************************************************************/

@@ -9,14 +9,12 @@
 using namespace chibios_rt;
 using namespace rf24::serial;
 
-/****************** User Config ***************************/
-/***      Set this radio as radio number 0 or 1         ***/
-
 #define GPIOB_CS_SPI                13
 #define GPIOB_RF24_CE               14
 #define GPIOB_SPC                   3
 #define GPIOB_SDI                   4
 #define GPIOB_SDO                   5
+#define GPIOA_IRQ                   10
 
 #define CHANNEL 0x55
 
@@ -35,7 +33,42 @@ Rf24ChibiosIo radioIo(&SPID1, &rf24SpiConfig, GPIOB, GPIOB_RF24_CE);
 RF24 radio(radioIo);
 RF24Serial remote(radio);
 
-/**********************************************************/
+void remoteIrq(EXTDriver *extp, expchannel_t channel) {
+    (void)extp;
+    (void)channel;
+    remote.irq();
+}
+
+static const EXTConfig extcfg = {
+  {
+    {EXT_CH_MODE_DISABLED, NULL}, // 0
+    {EXT_CH_MODE_DISABLED, NULL}, // 1
+    {EXT_CH_MODE_DISABLED, NULL}, // 2
+    {EXT_CH_MODE_DISABLED, NULL}, // 3
+    {EXT_CH_MODE_DISABLED, NULL}, // 4
+    {EXT_CH_MODE_DISABLED, NULL}, // 5
+    {EXT_CH_MODE_DISABLED, NULL}, // 6
+    {EXT_CH_MODE_DISABLED, NULL}, // 7
+    {EXT_CH_MODE_DISABLED, NULL}, // 8
+    {EXT_CH_MODE_DISABLED, NULL}, // 9
+    {EXT_CH_MODE_FALLING_EDGE |
+     EXT_CH_MODE_AUTOSTART |
+     EXT_MODE_GPIOA, remoteIrq},            /* IRQ line connected to PA10 */
+    {EXT_CH_MODE_DISABLED, NULL},
+    {EXT_CH_MODE_DISABLED, NULL},
+    {EXT_CH_MODE_DISABLED, NULL},
+    {EXT_CH_MODE_DISABLED, NULL},
+    {EXT_CH_MODE_DISABLED, NULL},
+    {EXT_CH_MODE_DISABLED, NULL},
+    {EXT_CH_MODE_DISABLED, NULL},
+    {EXT_CH_MODE_DISABLED, NULL},
+    {EXT_CH_MODE_DISABLED, NULL},
+    {EXT_CH_MODE_DISABLED, NULL},
+    {EXT_CH_MODE_DISABLED, NULL},
+    {EXT_CH_MODE_DISABLED, NULL}
+  }
+};
+
 
 uint8_t addresses[][6] = {"1Node","2Node"};
 
@@ -75,10 +108,10 @@ void setup() {
 
       // Set the PA Level low to prevent power supply related issues since this is a
       // getting_started sketch, and the likelihood of close proximity of the devices. RF24_PA_MAX is default.
-      radio.setPALevel(RF24_PA_LOW);
+      radio.setPALevel(RF24_PA_HIGH);
       radio.setDataRate(RF24_1MBPS);
       radio.setAutoAck(true);
-      radio.setRetries(2,15);
+      radio.setRetries(5,15);
       radio.setChannel(CHANNEL);
 
       radio.openWritingPipe(addresses[0]);
@@ -144,15 +177,17 @@ public:
     SendThread() : BaseStaticThread<1024>() { }
 };
 
-// RelayThread send(console, remote.stream());
-SendThread send;
+RelayThread send(console, remote.stream());
+// SendThread send;
 RelayThread recv(remote.stream(), console);
 
 int main(void) {
     halInit();
     System::init();
+    extInit();
 
     palSetPadMode(GPIOB, GPIOB_RF24_CE, PAL_MODE_OUTPUT_PUSHPULL | PAL_STM32_OSPEED_HIGHEST);
+    palSetPadMode(GPIOA, GPIOA_IRQ, PAL_MODE_INPUT | PAL_STM32_OSPEED_HIGHEST);
     palSetPadMode(GPIOA, GPIOA_LED_GREEN, PAL_MODE_OUTPUT_PUSHPULL);
     sdStart(&SD2, &consoleConfig);
 
@@ -160,6 +195,7 @@ int main(void) {
     setupSpiPins();
     setup();
     radio.printDetails();
+    extStart(&EXTD1, &extcfg);
     remote.start();
     send.start(NORMALPRIO);
     recv.start(NORMALPRIO);

@@ -41,7 +41,7 @@ RF24Serial::RF24Serial(RF24& rf24) : vmt(&VMT), radio(rf24), radioThread(NULL) {
 
 static void radio_thread_start(void *instance) {
     chRegSetThreadName("rf24serial");
-    rf24(instance)->main();
+    rf24(instance)->eventMain();
 }
 
 void RF24Serial::start() {
@@ -77,7 +77,7 @@ void RF24Serial::print(const char* fmt, ...) {
     va_end(ap);
 }
 
-bool RF24Serial::receive_available() {
+bool RF24Serial::receiveReady() {
     bool result = false;
     if(radio.available()) {
         chSysLock();
@@ -88,6 +88,95 @@ bool RF24Serial::receive_available() {
     return result;
 }
 
+const eventmask_t IRQ_EVENT = 0x1;
+const eventmask_t TX_EVENT = 0x2;
+const eventmask_t RX_EVENT = 0x3;
+
+void RF24Serial::irq() {
+    chSysLockFromISR();
+    radioThread.signalEventsI(IRQ_EVENT);
+    chSysUnlockFromISR();
+}
+
+void RF24Serial::receiveNonBlocking() {
+    while(receiveReady()) {
+        packet_t packet = get_packet();
+        radio.read(packet, PACKET_SIZE);
+        receive_queue.post(packet, TIME_IMMEDIATE);
+    }
+}
+
+void RF24Serial::transmitNonBlocking() {
+    packet_t packet;
+    while(!radio.txFifoFull()) {
+        if(transmit_queue.fetch(&packet, TIME_IMMEDIATE) == MSG_OK) {
+            radio.writeFast(packet, PACKET_SIZE, false);
+            free_packet(packet);
+        } else {
+            break;
+        }
+    }
+}
+
+void RF24Serial::transmitEventLoop() {
+    radio.stopListening();
+
+    // Fill up the fifo
+    transmitNonBlocking();
+
+    // And wait for it to drain, accepting new messages in the meantime.
+    while(!chThdShouldTerminateX() && !radio.txFifoEmpty()) {
+        switch(chEvtWaitOne(IRQ_EVENT | TX_EVENT)) {
+        case IRQ_EVENT:
+            bool tx_ok, tx_fail, rx_ready;
+            radio.whatHappened(tx_ok, tx_fail, rx_ready);
+            if(tx_ok) {
+                transmitNonBlocking();
+            }
+
+            if(tx_fail) {
+                transmit_failures++;
+                radio.txStandBy();
+                radio.startListening();
+                return;
+            }
+
+            if(rx_ready) {
+                receiveNonBlocking();
+            }
+            break;
+        case TX_EVENT:
+            transmitNonBlocking();
+            break;
+        }
+    }
+
+    radio.txStandBy();
+    radio.startListening();
+}
+
+void RF24Serial::eventMain() {
+    radio.startListening();
+
+    while(!chThdShouldTerminateX()) {
+        switch(chEvtWaitOne(IRQ_EVENT | TX_EVENT | RX_EVENT)) {
+        case IRQ_EVENT:
+            bool tx_ok, tx_fail, rx_ready;
+            radio.whatHappened(tx_ok, tx_fail, rx_ready);
+            if(rx_ready) {
+                receiveNonBlocking();
+            }
+            break;
+        case RX_EVENT:
+            receiveNonBlocking();
+            break;
+        case TX_EVENT:
+            transmitEventLoop();
+            break;
+        }
+    }
+}
+
 void RF24Serial::main() {
     packet_t packet;
 
@@ -95,36 +184,27 @@ void RF24Serial::main() {
 
     while(!chThdShouldTerminateX()) {
 
-        while (receive_available()) {
-            packet = get_packet();
-            radio.read(packet, PACKET_SIZE);
-            receive_queue.post(packet, TIME_IMMEDIATE);
-        }
+        receiveNonBlocking();
 
-        {
-            packet_t current, next;
-            if(transmit_queue.fetch(&current, MS2ST(4)) == MSG_OK) {
-                radio.stopListening();
-                while(transmit_queue.fetch(&next, TIME_IMMEDIATE) == MSG_OK) {
-                    radio.writeFast(current, PACKET_SIZE);
-                    free_packet(current);
-                    current = next;
-                }
+        if(transmit_queue.fetch(&packet, MS2ST(4)) == MSG_OK) {
+            radio.stopListening();
+            do {
+                radio.writeFast(packet, PACKET_SIZE);
+                free_packet(packet);
+            } while(transmit_queue.fetch(&packet, TIME_IMMEDIATE) == MSG_OK);
 
-                radio.write(current, PACKET_SIZE);
-                free_packet(current);
-                radio.startListening();
-            }
+            radio.txStandBy();
+            radio.startListening();
         }
     }
 }
 
 msg_t RF24Serial::get() {
-    if(receive_ensure_available() != Q_OK) {
+    if(receiveEnsureAvailable() != Q_OK) {
         return Q_RESET;
     } else {
         msg_t c = receive_packet[receive_pos++];
-        receive_free_packet_if_empty();
+        receiveFreeBufferIfEmpty();
         return c;
     }
 }
@@ -132,20 +212,21 @@ msg_t RF24Serial::get() {
 size_t RF24Serial::read(uint8_t* bp, size_t n) {
     size_t read = 0;
     while(read < n) {
-        if(receive_ensure_available() != Q_OK) break;
-        while(!receive_empty() && read < n) bp[read++] = receive_packet[receive_pos++];
-        receive_free_packet_if_empty();
+        if(receiveEnsureAvailable() != Q_OK) break;
+        while(!receiveBufferEmpty() && read < n) bp[read++] = receive_packet[receive_pos++];
+        receiveFreeBufferIfEmpty();
     }
     return read;
 }
 
 
-msg_t RF24Serial::receive_ensure_available() {
+msg_t RF24Serial::receiveEnsureAvailable() {
     msg_t result = Q_OK;
     if(state != State::READY) {
         result = Q_RESET;
-    } else if(receive_empty()) {
+    } else if(receiveBufferEmpty()) {
         if(receive_queue.fetch(&receive_packet, TIME_INFINITE) == MSG_OK) {
+            radioThread.signalEvents(RX_EVENT);
             receive_pos = 0;
         } else {
             result = Q_RESET;
@@ -155,8 +236,8 @@ msg_t RF24Serial::receive_ensure_available() {
     return result;
 }
 
-void RF24Serial::receive_free_packet_if_empty() {
-    if(receive_empty()) {
+void RF24Serial::receiveFreeBufferIfEmpty() {
+    if(receiveBufferEmpty()) {
         free_packet(receive_packet);
         receive_pos = PACKET_SIZE;
     }
@@ -168,6 +249,7 @@ msg_t RF24Serial::flush(void) {
     } else if(transmit_pos > 0) {
         for(; transmit_pos != PACKET_SIZE; ++transmit_pos) transmit_packet[transmit_pos] = 0;
         if(transmit_queue.post(transmit_packet, TIME_INFINITE) == MSG_OK) {
+            radioThread.signalEvents(TX_EVENT);
             transmit_packet = get_packet();
             transmit_pos = 0;
         } else {

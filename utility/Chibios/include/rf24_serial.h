@@ -63,6 +63,7 @@ private:
     Mailbox<packet_t, QUEUE_COUNT> transmit_queue;
     packet_t transmit_packet;
     uint8_t transmit_pos;
+    uint32_t transmit_failures = 0;
 
     // -------------------------------------------------------------
     // Receive state
@@ -82,19 +83,22 @@ private:
 
     // -------------------------------------------------------------
     // Transmit private methods
+    void transmitEventLoop();
+    void transmitNonBlocking();
     bool transmit_idle();
     msg_t flush_if_full_or_ready();
     size_t append(const uint8_t *bp, size_t n);
 
     // -------------------------------------------------------------
     // Receive private methods
-    inline bool receive_empty() {
+    inline bool receiveBufferEmpty() {
         return receive_pos == PACKET_SIZE ? true : receive_packet[receive_pos] == '\0';
     }
 
-    bool receive_available();
-    msg_t receive_ensure_available();
-    void receive_free_packet_if_empty();
+    bool receiveReady();
+    void receiveNonBlocking();
+    msg_t receiveEnsureAvailable();
+    void receiveFreeBufferIfEmpty();
 
 public:
     RF24Serial(RF24 &rf24);
@@ -102,6 +106,8 @@ public:
     void start();
     void stop();
     void main();
+    void irq();
+    void eventMain();
     msg_t get();
     size_t read(uint8_t *bp, size_t n);
     msg_t put(uint8_t b);

@@ -278,6 +278,24 @@ s   *
   bool rxFifoFull();
 
   /**
+   * Check if the radio will writeFast without blocking
+   * @return True if all three 32-byte radio buffers are full
+   */
+  bool txFifoFull();
+
+  /**
+   * Check if all the packets in the buffer have been sent.
+   * @return
+   */
+  bool txFifoEmpty();
+
+  /**
+   * Flush a failure from the TX queue. I.e. after what happenned returns tx_fail
+   * call this.
+   */
+  void txFlushFailure();
+
+  /**
    * Enter low-power mode
    *
    * To return to normal power mode, call powerUp().
