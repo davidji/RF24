@@ -8,6 +8,11 @@ namespace serial {
 
 using namespace std;
 
+const eventmask_t STOP_EVENT = 0x1;
+const eventmask_t IRQ_EVENT = 0x2;
+const eventmask_t TX_EVENT = 0x4;
+const eventmask_t RX_EVENT = 0x8;
+
 static inline RF24Serial *rf24(void *instance) {
     return (RF24Serial *)instance;
 }
@@ -47,27 +52,32 @@ static void radio_thread_start(void *instance) {
 void RF24Serial::start() {
     stateMutex.lock();
     if(state == State::STOP) {
-        transmit_queue.reset();
-        receive_queue.reset();
+        state = State::STARTING;
         chPoolObjectInit(&packets, PACKET_SIZE, NULL);
         chPoolLoadArray(&packets, buffer, PACKET_POOL_COUNT);
-        radioThread.thread_ref = chThdCreateStatic(wa, sizeof(wa), NORMALPRIO, radio_thread_start, this);
+        stateMutex.unlock();
         transmit_packet = get_packet();
         transmit_pos = 0;
         receive_pos = PACKET_SIZE;
-        state = State::READY;
+        radioThread.thread_ref = chThdCreateStatic(wa, sizeof(wa), NORMALPRIO, radio_thread_start, this);
+    } else {
+        stateMutex.unlock();
     }
-    stateMutex.unlock();
 }
 
 void RF24Serial::stop() {
     stateMutex.lock();
     if(state == State::READY) {
-        radioThread.requestTerminate();
+        state = State::STOPPING;
+        radioThread.signalEvents(STOP_EVENT);
+        stateMutex.unlock();
         radioThread.wait();
-        state = STOP;
+        transmit_queue.reset();
+        receive_queue.reset();
+        setState(State::STOP);
+    } else {
+        stateMutex.unlock();
     }
-    stateMutex.unlock();
 }
 
 void RF24Serial::print(const char* fmt, ...) {
@@ -77,7 +87,7 @@ void RF24Serial::print(const char* fmt, ...) {
     va_end(ap);
 }
 
-bool RF24Serial::receiveReady() {
+inline bool RF24Serial::receiveReady() {
     bool result = false;
     if(radio.available()) {
         chSysLock();
@@ -88,17 +98,16 @@ bool RF24Serial::receiveReady() {
     return result;
 }
 
-const eventmask_t IRQ_EVENT = 0x1;
-const eventmask_t TX_EVENT = 0x2;
-const eventmask_t RX_EVENT = 0x3;
 
 void RF24Serial::irq() {
     chSysLockFromISR();
-    radioThread.signalEventsI(IRQ_EVENT);
+    if(state == State::READY) {
+        radioThread.signalEventsI(IRQ_EVENT);
+    }
     chSysUnlockFromISR();
 }
 
-void RF24Serial::receiveNonBlocking() {
+inline void RF24Serial::receiveNonBlocking() {
     while(receiveReady()) {
         packet_t packet = get_packet();
         radio.read(packet, PACKET_SIZE);
@@ -106,47 +115,67 @@ void RF24Serial::receiveNonBlocking() {
     }
 }
 
-void RF24Serial::transmitNonBlocking() {
+inline bool RF24Serial::transmitNonBlocking() {
+    bool full;
+    for(full = radio.txFifoFull(); !full && transmitNext(); full = radio.txFifoFull());
+    return full;
+}
+
+inline bool RF24Serial::transmitNext() {
     packet_t packet;
-    while(!radio.txFifoFull()) {
-        if(transmit_queue.fetch(&packet, TIME_IMMEDIATE) == MSG_OK) {
-            radio.writeFast(packet, PACKET_SIZE, false);
-            free_packet(packet);
-        } else {
-            break;
-        }
+    if(transmit_queue.fetch(&packet, TIME_IMMEDIATE) == MSG_OK) {
+        radio.startFastWrite(packet, PACKET_SIZE, false);
+        free_packet(packet);
+        return true;
+    } else {
+        return false;
     }
 }
 
-void RF24Serial::transmitEventLoop() {
-    radio.stopListening();
 
-    // Fill up the fifo
-    transmitNonBlocking();
+void RF24Serial::transmitEventLoop() {
+
+    radio.stopListening();
+    for(int i = 0; i != 3 && transmitNext(); ++i);
 
     // And wait for it to drain, accepting new messages in the meantime.
-    while(!chThdShouldTerminateX() && !radio.txFifoEmpty()) {
-        switch(chEvtWaitOne(IRQ_EVENT | TX_EVENT)) {
+    while(state == State::READY) {
+        switch(chEvtWaitOne(STOP_EVENT | IRQ_EVENT | TX_EVENT | RX_EVENT)) {
         case IRQ_EVENT:
+            stats.irq++;
             bool tx_ok, tx_fail, rx_ready;
             radio.whatHappened(tx_ok, tx_fail, rx_ready);
-            if(tx_ok) {
-                transmitNonBlocking();
+            if(rx_ready) {
+                stats.rx_dr++;
+                receiveNonBlocking();
             }
 
             if(tx_fail) {
-                transmit_failures++;
+                stats.max_rt++;
                 radio.txStandBy();
                 radio.startListening();
                 return;
             }
 
-            if(rx_ready) {
-                receiveNonBlocking();
+            if(tx_ok) {
+                stats.tx_ok++;
+                if(transmitNext()) {
+                    transmitNonBlocking();
+                } else if(radio.txFifoEmpty()) {
+                    return;
+                }
             }
+
             break;
         case TX_EVENT:
+            stats.tx++;
             transmitNonBlocking();
+            break;
+        case RX_EVENT:
+            stats.rx++;
+            receiveNonBlocking();
+            break;
+        case STOP_EVENT:
             break;
         }
     }
@@ -156,10 +185,11 @@ void RF24Serial::transmitEventLoop() {
 }
 
 void RF24Serial::eventMain() {
+    setState(State::READY);
     radio.startListening();
 
-    while(!chThdShouldTerminateX()) {
-        switch(chEvtWaitOne(IRQ_EVENT | TX_EVENT | RX_EVENT)) {
+    while(state == State::READY) {
+        switch(chEvtWaitOne(STOP_EVENT | IRQ_EVENT | TX_EVENT | RX_EVENT)) {
         case IRQ_EVENT:
             bool tx_ok, tx_fail, rx_ready;
             radio.whatHappened(tx_ok, tx_fail, rx_ready);
@@ -168,21 +198,27 @@ void RF24Serial::eventMain() {
             }
             break;
         case RX_EVENT:
+            stats.rx++;
             receiveNonBlocking();
             break;
         case TX_EVENT:
+            stats.tx++;
             transmitEventLoop();
+            break;
+        case STOP_EVENT:
             break;
         }
     }
+
 }
 
 void RF24Serial::main() {
     packet_t packet;
 
+    setState(State::READY);
     radio.startListening();
 
-    while(!chThdShouldTerminateX()) {
+    while(state == State::READY) {
 
         receiveNonBlocking();
 
@@ -219,8 +255,16 @@ size_t RF24Serial::read(uint8_t* bp, size_t n) {
     return read;
 }
 
+size_t RF24Serial::readPacket(uint8_t* bp) {
+    size_t read = 0;
+    if(receiveEnsureAvailable() == Q_OK) {
+        while(!receiveBufferEmpty()) bp[read++] = receive_packet[receive_pos++];
+        receiveFreeBufferIfEmpty();
+    }
+    return read;
+}
 
-msg_t RF24Serial::receiveEnsureAvailable() {
+inline msg_t RF24Serial::receiveEnsureAvailable() {
     msg_t result = Q_OK;
     if(state != State::READY) {
         result = Q_RESET;
@@ -236,7 +280,7 @@ msg_t RF24Serial::receiveEnsureAvailable() {
     return result;
 }
 
-void RF24Serial::receiveFreeBufferIfEmpty() {
+inline void RF24Serial::receiveFreeBufferIfEmpty() {
     if(receiveBufferEmpty()) {
         free_packet(receive_packet);
         receive_pos = PACKET_SIZE;
@@ -292,7 +336,7 @@ bool RF24Serial::transmit_idle() {
 }
 
 msg_t RF24Serial::flush_if_full_or_ready() {
-    if(transmit_pos == PACKET_SIZE || transmit_idle()) {
+    if(transmit_pos == PACKET_SIZE) {
         return flush();
     } else {
         return Q_OK;

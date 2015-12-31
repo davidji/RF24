@@ -21,7 +21,7 @@ struct PacketTransmitStreamVMT {
 };
 
 typedef enum {
-    STOP, READY, ERROR
+    STOP, STARTING, READY, STOPPING, ERROR
 } State;
 
 typedef enum {
@@ -33,7 +33,7 @@ struct RF24Serial {
 private:
 
     RF24 &radio;
-    State state = State::STOP;
+    volatile State state = State::STOP;
     Error error = Error::NONE;
     Mutex stateMutex;
 
@@ -63,7 +63,6 @@ private:
     Mailbox<packet_t, QUEUE_COUNT> transmit_queue;
     packet_t transmit_packet;
     uint8_t transmit_pos;
-    uint32_t transmit_failures = 0;
 
     // -------------------------------------------------------------
     // Receive state
@@ -81,10 +80,17 @@ private:
         chPoolFree(&packets, packet);
     }
 
+    void setState(State _state) {
+        stateMutex.lock();
+        state = _state;
+        stateMutex.unlock();
+    }
+
     // -------------------------------------------------------------
     // Transmit private methods
     void transmitEventLoop();
-    void transmitNonBlocking();
+    bool transmitNonBlocking();
+    bool transmitNext();
     bool transmit_idle();
     msg_t flush_if_full_or_ready();
     size_t append(const uint8_t *bp, size_t n);
@@ -108,8 +114,32 @@ public:
     void main();
     void irq();
     void eventMain();
+    /**
+     * Get a single character
+     * This corresponds to streamGet in sequential streams
+     * @return the single character
+     * @retval STM_RESET    if an end-of-file condition has been met.
+     */
     msg_t get();
+
+    /**
+     * Get n characters.
+     * @param bp the buffer to write the characters into
+     * @param n the maximum number of characters to read
+     * @return the number of characters read
+     */
     size_t read(uint8_t *bp, size_t n);
+
+    /**
+     * Read one packet.
+     * If there's a partial packet remaining, read that, otherwise wait
+     * for the next packet, and return. The reason for this method is it's
+     * convenient for a network gateway.
+     * @param packet the packet buffer to write to which must be PACKET_SIZE.
+     * @return the size of the read packet.
+     */
+    size_t readPacket(uint8_t *packet);
+
     msg_t put(uint8_t b);
     size_t write(const uint8_t *bp, size_t n);
     void print(const char *fmt, ...);
@@ -118,6 +148,11 @@ public:
     inline BaseSequentialStream *stream() {
         return (BaseSequentialStream *)this;
     }
+
+    struct {
+        uint32_t tx = 0, rx = 0, irq = 0, rx_dr = 0, tx_ok = 0, max_rt = 0;
+    } stats;
+
 };
 
 }
