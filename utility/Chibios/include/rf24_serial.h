@@ -14,19 +14,30 @@ static const uint8_t PACKET_COUNT = 5;
 static const size_t PACKET_POOL_COUNT = 2 * PACKET_COUNT;
 static const size_t QUEUE_COUNT = PACKET_COUNT - 2;
 
-typedef uint8_t *packet_t;
+typedef struct packet {
+    size_t length;
+    uint8_t data[PACKET_SIZE];
+} *packet_t;
 
 struct PacketTransmitStreamVMT {
     _base_sequential_stream_methods
 };
 
 typedef enum {
-    STOP, STARTING, READY, STOPPING, ERROR
+    STOP, STARTING, PRX, PTX, STOPPING, ERROR
 } State;
 
 typedef enum {
-    NONE, TRANSMIT_FREE_POST, TRANSMIT_FREE_FETCH
+    NONE, ALLOC
 } Error;
+
+typedef enum {
+    RECEIVE_NONE, RECEIVE_ENSURE_AVAILABLE_NOT_READY, RECEIVE_ENSURE_AVAILABLE_RESET, RECEIVE_ENSURE_AVAILABLE_EMPTY
+} ReceiveStatus;
+
+typedef enum {
+    AUTO, PTX_ONLY, PRX_ONLY
+} Mode;
 
 struct RF24Serial {
     const struct PacketTransmitStreamVMT * const vmt;
@@ -34,12 +45,13 @@ private:
 
     RF24 &radio;
     volatile State state = State::STOP;
+    Mode mode = Mode::AUTO;
     Error error = Error::NONE;
     Mutex stateMutex;
 
     // This is a blob of memory big enough to hold all the packets we could need
     __attribute__((aligned(sizeof(void *))))
-    uint8_t buffer[PACKET_POOL_COUNT * PACKET_SIZE];
+    uint8_t buffer[PACKET_POOL_COUNT * sizeof(struct packet)];
     // We want to be able to re-init the pool each time we start, so we don't
     // use the C++ wrapper.
     memory_pool_t packets;
@@ -47,6 +59,10 @@ private:
     // The radio IO thread
     THD_WORKING_AREA(wa, 256);
     ThreadReference radioThread;
+
+    bool ready() {
+        return (state == PTX || state == PRX);
+    }
 
     // -------------------------------------------------------------
     // Transmit state
@@ -69,14 +85,17 @@ private:
     Mailbox<packet_t, QUEUE_COUNT> receive_queue;
     packet_t receive_packet;
     uint8_t receive_pos;
+    ReceiveStatus receive_status;
 
-    void set_error(Error error);
+    void setError(Error error);
 
-    inline packet_t get_packet() {
-        return (packet_t)chPoolAlloc(&packets);
+    inline packet_t allocPacket() {
+        packet_t packet = (packet_t)chPoolAlloc(&packets);
+        if(packet == NULL) setError(Error::ALLOC);
+        return packet;
     }
 
-    inline void free_packet(packet_t packet) {
+    inline void freePacket(packet_t packet) {
         chPoolFree(&packets, packet);
     }
 
@@ -89,16 +108,19 @@ private:
     // -------------------------------------------------------------
     // Transmit private methods
     void transmitEventLoop();
-    bool transmitNonBlocking();
+    void transmitNonBlocking();
     bool transmitNext();
-    bool transmit_idle();
-    msg_t flush_if_full_or_ready();
+
+    inline msg_t flushIfFull() {
+        return (transmit_pos < PACKET_SIZE) ? MSG_OK : flush();
+    }
+
     size_t append(const uint8_t *bp, size_t n);
 
     // -------------------------------------------------------------
     // Receive private methods
     inline bool receiveBufferEmpty() {
-        return receive_pos == PACKET_SIZE ? true : receive_packet[receive_pos] == '\0';
+        return (receive_packet == NULL || receive_pos == receive_packet->length);
     }
 
     bool receiveReady();
@@ -109,7 +131,7 @@ private:
 public:
     RF24Serial(RF24 &rf24);
     void reset();
-    void start();
+    void start(Mode mode = Mode::AUTO);
     void stop();
     void main();
     void irq();
@@ -150,7 +172,7 @@ public:
     }
 
     struct {
-        uint32_t tx = 0, rx = 0, irq = 0, rx_dr = 0, tx_ok = 0, max_rt = 0;
+        uint32_t tx = 0, rx = 0, irq = 0, rx_dr = 0, tx_ok = 0, max_rt = 0, rx_empty = 0;
     } stats;
 
 };

@@ -49,14 +49,15 @@ static void radio_thread_start(void *instance) {
     rf24(instance)->eventMain();
 }
 
-void RF24Serial::start() {
+void RF24Serial::start(Mode m) {
     stateMutex.lock();
+    mode = m;
     if(state == State::STOP) {
         state = State::STARTING;
-        chPoolObjectInit(&packets, PACKET_SIZE, NULL);
+        chPoolObjectInit(&packets, sizeof(struct packet), NULL);
         chPoolLoadArray(&packets, buffer, PACKET_POOL_COUNT);
         stateMutex.unlock();
-        transmit_packet = get_packet();
+        transmit_packet = allocPacket();
         transmit_pos = 0;
         receive_pos = PACKET_SIZE;
         radioThread.thread_ref = chThdCreateStatic(wa, sizeof(wa), NORMALPRIO, radio_thread_start, this);
@@ -67,7 +68,7 @@ void RF24Serial::start() {
 
 void RF24Serial::stop() {
     stateMutex.lock();
-    if(state == State::READY) {
+    if(ready()) {
         state = State::STOPPING;
         radioThread.signalEvents(STOP_EVENT);
         stateMutex.unlock();
@@ -88,44 +89,48 @@ void RF24Serial::print(const char* fmt, ...) {
 }
 
 inline bool RF24Serial::receiveReady() {
-    bool result = false;
-    if(radio.available()) {
-        chSysLock();
-        result = receive_queue.getFreeCountI() > 0;
-        chSysUnlock();
-    }
+    cnt_t free;
+    chSysLock();
+    free = receive_queue.getFreeCountI();
+    chSysUnlock();
 
-    return result;
+    return (free > 0) && radio.available();
 }
 
 
 void RF24Serial::irq() {
     chSysLockFromISR();
-    if(state == State::READY) {
+    if(ready()) {
         radioThread.signalEventsI(IRQ_EVENT);
     }
     chSysUnlockFromISR();
 }
 
+
+
 inline void RF24Serial::receiveNonBlocking() {
     while(receiveReady()) {
-        packet_t packet = get_packet();
-        radio.read(packet, PACKET_SIZE);
-        receive_queue.post(packet, TIME_IMMEDIATE);
+        packet_t packet = allocPacket();
+        radio.read(packet->data, PACKET_SIZE);
+        packet->length = radio.getDynamicPayloadSize();
+        if(packet->length > 0) {
+            receive_queue.post(packet, TIME_IMMEDIATE);
+        } else {
+            freePacket(packet);
+            stats.rx_empty++;
+        }
     }
 }
 
-inline bool RF24Serial::transmitNonBlocking() {
-    bool full;
-    for(full = radio.txFifoFull(); !full && transmitNext(); full = radio.txFifoFull());
-    return full;
+inline void RF24Serial::transmitNonBlocking() {
+    while(!radio.txFifoFull() && transmitNext()) {};
 }
 
 inline bool RF24Serial::transmitNext() {
     packet_t packet;
     if(transmit_queue.fetch(&packet, TIME_IMMEDIATE) == MSG_OK) {
-        radio.startFastWrite(packet, PACKET_SIZE, false);
-        free_packet(packet);
+        radio.startFastWrite(packet->data, packet->length, false);
+        freePacket(packet);
         return true;
     } else {
         return false;
@@ -133,13 +138,25 @@ inline bool RF24Serial::transmitNext() {
 }
 
 
-void RF24Serial::transmitEventLoop() {
+void RF24Serial::eventMain() {
 
-    radio.stopListening();
-    for(int i = 0; i != 3 && transmitNext(); ++i);
+    stateMutex.lock();
+    if(state == STARTING) {
+        switch(mode) {
+        case AUTO: case PRX_ONLY:
+            state = PRX;
+            radio.startListening();
+            break;
+        case PTX_ONLY:
+            state = PTX;
+            transmitNonBlocking();
+            break;
+        }
+    }
+    stateMutex.unlock();
 
     // And wait for it to drain, accepting new messages in the meantime.
-    while(state == State::READY) {
+    while(ready()) {
         switch(chEvtWaitOne(STOP_EVENT | IRQ_EVENT | TX_EVENT | RX_EVENT)) {
         case IRQ_EVENT:
             stats.irq++;
@@ -151,24 +168,38 @@ void RF24Serial::transmitEventLoop() {
             }
 
             if(tx_fail) {
+                /* There are two conflicting requirements here: this is a serial emulation
+                 * so gaps are not expected, but when a receiver joins it expects the data
+                 * to be current. The real solution is to implement a TTL to discard packets.
+                 */
                 stats.max_rt++;
-                radio.txStandBy();
-                radio.startListening();
-                return;
+                radio.txFlushFailure();
             }
 
             if(tx_ok) {
                 stats.tx_ok++;
-                if(transmitNext()) {
-                    transmitNonBlocking();
-                } else if(radio.txFifoEmpty()) {
-                    return;
+                transmitNonBlocking();
+                if(mode == AUTO) {
+                    stateMutex.lock();
+                    if(state == PTX && radio.txFifoEmpty()) {
+                        radio.startListening();
+                        state = PRX;
+                    }
+                    stateMutex.unlock();
                 }
             }
 
             break;
         case TX_EVENT:
             stats.tx++;
+            if(mode == AUTO) {
+                stateMutex.lock();
+                if(state == PRX) {
+                    radio.stopListening();
+                    state = PTX;
+                }
+                stateMutex.unlock();
+            }
             transmitNonBlocking();
             break;
         case RX_EVENT:
@@ -181,65 +212,14 @@ void RF24Serial::transmitEventLoop() {
     }
 
     radio.txStandBy();
-    radio.startListening();
 }
 
-void RF24Serial::eventMain() {
-    setState(State::READY);
-    radio.startListening();
-
-    while(state == State::READY) {
-        switch(chEvtWaitOne(STOP_EVENT | IRQ_EVENT | TX_EVENT | RX_EVENT)) {
-        case IRQ_EVENT:
-            bool tx_ok, tx_fail, rx_ready;
-            radio.whatHappened(tx_ok, tx_fail, rx_ready);
-            if(rx_ready) {
-                receiveNonBlocking();
-            }
-            break;
-        case RX_EVENT:
-            stats.rx++;
-            receiveNonBlocking();
-            break;
-        case TX_EVENT:
-            stats.tx++;
-            transmitEventLoop();
-            break;
-        case STOP_EVENT:
-            break;
-        }
-    }
-
-}
-
-void RF24Serial::main() {
-    packet_t packet;
-
-    setState(State::READY);
-    radio.startListening();
-
-    while(state == State::READY) {
-
-        receiveNonBlocking();
-
-        if(transmit_queue.fetch(&packet, MS2ST(4)) == MSG_OK) {
-            radio.stopListening();
-            do {
-                radio.writeFast(packet, PACKET_SIZE);
-                free_packet(packet);
-            } while(transmit_queue.fetch(&packet, TIME_IMMEDIATE) == MSG_OK);
-
-            radio.txStandBy();
-            radio.startListening();
-        }
-    }
-}
 
 msg_t RF24Serial::get() {
     if(receiveEnsureAvailable() != Q_OK) {
         return Q_RESET;
     } else {
-        msg_t c = receive_packet[receive_pos++];
+        msg_t c = receive_packet->data[receive_pos++];
         receiveFreeBufferIfEmpty();
         return c;
     }
@@ -248,8 +228,8 @@ msg_t RF24Serial::get() {
 size_t RF24Serial::read(uint8_t* bp, size_t n) {
     size_t read = 0;
     while(read < n) {
-        if(receiveEnsureAvailable() != Q_OK) break;
-        while(!receiveBufferEmpty() && read < n) bp[read++] = receive_packet[receive_pos++];
+        if(receiveEnsureAvailable() != MSG_OK) break;
+        while(!receiveBufferEmpty() && read < n) bp[read++] = receive_packet->data[receive_pos++];
         receiveFreeBufferIfEmpty();
     }
     return read;
@@ -257,23 +237,30 @@ size_t RF24Serial::read(uint8_t* bp, size_t n) {
 
 size_t RF24Serial::readPacket(uint8_t* bp) {
     size_t read = 0;
-    if(receiveEnsureAvailable() == Q_OK) {
-        while(!receiveBufferEmpty()) bp[read++] = receive_packet[receive_pos++];
+    if(receiveEnsureAvailable() == MSG_OK) {
+        while(!receiveBufferEmpty()) bp[read++] = receive_packet->data[receive_pos++];
         receiveFreeBufferIfEmpty();
     }
     return read;
 }
 
 inline msg_t RF24Serial::receiveEnsureAvailable() {
-    msg_t result = Q_OK;
-    if(state != State::READY) {
-        result = Q_RESET;
-    } else if(receiveBufferEmpty()) {
+    msg_t result = MSG_OK;
+    if(!ready()) {
+        receive_status = RECEIVE_ENSURE_AVAILABLE_NOT_READY;
+        result = MSG_RESET;
+    } else if(receive_packet == NULL) {
         if(receive_queue.fetch(&receive_packet, TIME_INFINITE) == MSG_OK) {
+            // signal the radio thread that there's a free slot in the receive queue
             radioThread.signalEvents(RX_EVENT);
             receive_pos = 0;
+            if(receiveBufferEmpty()) {
+                receive_status = RECEIVE_ENSURE_AVAILABLE_EMPTY;
+                result = MSG_RESET;
+            }
         } else {
-            result = Q_RESET;
+            receive_status = RECEIVE_ENSURE_AVAILABLE_RESET;
+            result = MSG_RESET;
         }
     }
 
@@ -282,65 +269,50 @@ inline msg_t RF24Serial::receiveEnsureAvailable() {
 
 inline void RF24Serial::receiveFreeBufferIfEmpty() {
     if(receiveBufferEmpty()) {
-        free_packet(receive_packet);
-        receive_pos = PACKET_SIZE;
+        freePacket(receive_packet);
+        receive_packet = NULL;
     }
 }
 
 msg_t RF24Serial::flush(void) {
-    if(state != State::READY) {
-        return Q_RESET;
+    if(!ready()) {
+        return MSG_RESET;
     } else if(transmit_pos > 0) {
-        for(; transmit_pos != PACKET_SIZE; ++transmit_pos) transmit_packet[transmit_pos] = 0;
+        transmit_packet->length = transmit_pos;
         if(transmit_queue.post(transmit_packet, TIME_INFINITE) == MSG_OK) {
             radioThread.signalEvents(TX_EVENT);
-            transmit_packet = get_packet();
+            transmit_packet = allocPacket();
             transmit_pos = 0;
         } else {
-            return Q_RESET;
+            return MSG_RESET;
         }
     }
 
-    return Q_OK;
+    return MSG_OK;
 }
 
 msg_t RF24Serial::put(uint8_t b) {
-    if(state != State::READY) {
+    if(!ready()) {
         return Q_RESET;
     } else {
-        transmit_packet[transmit_pos++] = b;
-        return flush_if_full_or_ready();
+        transmit_packet->data[transmit_pos++] = b;
+        return flushIfFull();
     }
 }
 
 size_t RF24Serial::write(const uint8_t *bp, size_t n) {
-    if(state != READY) {
+    if(!ready()) {
         return 0;
     }
 
     size_t written = 0;
     written += append(&bp[written], n - written);
     while(written < n) {
-        if(flush() != Q_OK) break;
+        if(flush() != MSG_OK) break;
         written += append(&bp[written], n - written);
     }
-    flush_if_full_or_ready();
+    flushIfFull();
     return written;
-}
-
-bool RF24Serial::transmit_idle() {
-    chSysLock();
-    bool result = transmit_queue.getFreeCountI() < 0;
-    chSysUnlock();
-    return result;
-}
-
-msg_t RF24Serial::flush_if_full_or_ready() {
-    if(transmit_pos == PACKET_SIZE) {
-        return flush();
-    } else {
-        return Q_OK;
-    }
 }
 
 static inline size_t min(size_t a, size_t b) {
@@ -349,12 +321,12 @@ static inline size_t min(size_t a, size_t b) {
 
 size_t RF24Serial::append(const uint8_t *bp, size_t n) {
     size_t write = min(PACKET_SIZE - transmit_pos, n);
-    memcpy(&transmit_packet[transmit_pos], bp, write);
+    memcpy(&transmit_packet->data[transmit_pos], bp, write);
     transmit_pos += write;
     return write;
 }
 
-void RF24Serial::set_error(Error _error) {
+void RF24Serial::setError(Error _error) {
     stateMutex.lock();
     error = _error;
     state = State::ERROR;
