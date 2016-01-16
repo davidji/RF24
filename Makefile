@@ -1,5 +1,7 @@
 
-SUBDIRS = examples/Chibios/GettingStarted examples/Chibios/Stream
+SUBDIRS = examples/Chibios/GettingStarted \
+	examples/Chibios/Stream \
+	utility/Linux
 
 all: $(SUBDIRS)
 $(SUBDIRS):

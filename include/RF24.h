@@ -38,6 +38,14 @@ typedef enum { RF24_1MBPS = 0, RF24_2MBPS, RF24_250KBPS } rf24_datarate_e;
  */
 typedef enum { RF24_CRC_DISABLED = 0, RF24_CRC_8, RF24_CRC_16 } rf24_crclength_e;
 
+struct Status {
+    bool tx_full : 1;
+    unsigned int rx_p_no : 3;
+    bool max_rt : 1;
+    bool tx_ds : 1;
+    bool rx_dr : 1;
+};
+
 /**
  * Driver for nRF24L01(+) 2.4GHz Wireless Transceiver
  */
@@ -290,10 +298,17 @@ s   *
   bool txFifoEmpty();
 
   /**
-   * Flush a failure from the TX queue. I.e. after what happenned returns tx_fail
-   * call this.
+   * Flush the message at the front of the transmit queue. If whatHappened returns tx_fail
+   * call this to discard that packet and start transmission again.
    */
-  void txFlushFailure();
+  void txFlush();
+
+  /**
+   * Try and send the message at the head of the queue again.
+   * If whatHappened returns tx_fail
+   * call this to discard to start transmission again, retrying the last packet
+   */
+  void txRetry();
 
   /**
    * Enter low-power mode

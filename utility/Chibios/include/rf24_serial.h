@@ -2,6 +2,7 @@
 #define _RF24_SERIAL_H_
 
 #include <ch.hpp>
+#include <chdebug.h>
 #include <RF24.h>
 
 namespace rf24 {
@@ -39,7 +40,18 @@ typedef enum {
     AUTO, PTX_ONLY, PRX_ONLY
 } Mode;
 
-struct RF24Serial {
+/**
+ * This event occurs when ever a new packet is available for reading.
+ */
+const eventmask_t RX_EVENT = 0x1;
+
+/**
+ * This event occurs when ever the stream is ready to accept more data: i.e.
+ * whenever sending one packet worth of data won't block.
+ */
+const eventmask_t TX_EVENT = 0x2;
+
+struct RF24Serial : EvtSource {
     const struct PacketTransmitStreamVMT * const vmt;
 private:
 
@@ -51,7 +63,7 @@ private:
 
     // This is a blob of memory big enough to hold all the packets we could need
     __attribute__((aligned(sizeof(void *))))
-    uint8_t buffer[PACKET_POOL_COUNT * sizeof(struct packet)];
+    struct packet buffer[PACKET_POOL_COUNT];
     // We want to be able to re-init the pool each time we start, so we don't
     // use the C++ wrapper.
     memory_pool_t packets;
@@ -89,10 +101,27 @@ private:
 
     void setError(Error error);
 
+    inline void validatePacket(packet_t packet) {
+        chDbgAssert(packet >= buffer, "RF24Serial::checkValidPacket - underflow");
+        size_t offset = ((uint8_t *)packet) - ((uint8_t *)buffer);
+        chDbgAssert(offset % (sizeof(struct packet)) == 0, "RF24Serial::checkValidPacket - alignment");
+        chDbgAssert(offset / (sizeof(struct packet)) < PACKET_POOL_COUNT, "RF24Serial::checkValidPacket - overflow");
+    }
+
     inline packet_t allocPacket() {
         packet_t packet = (packet_t)chPoolAlloc(&packets);
-        if(packet == NULL) setError(Error::ALLOC);
+        validatePacket(packet);
         return packet;
+    }
+
+    inline void preWriteCheck() {
+        validatePacket(transmit_packet);
+        chDbgAssert(transmit_pos >= PACKET_SIZE, "RF24Serial::preWriteCheck - overflow");
+    }
+
+    inline void preReadCheck() {
+        validatePacket(receive_packet);
+        chDbgAssert(receive_pos < PACKET_SIZE, "RF24Serial::preReadCheck - overflow");
     }
 
     inline void freePacket(packet_t packet) {
@@ -166,6 +195,8 @@ public:
     size_t write(const uint8_t *bp, size_t n);
     void print(const char *fmt, ...);
     msg_t flush(void);
+
+
 
     inline BaseSequentialStream *stream() {
         return (BaseSequentialStream *)this;

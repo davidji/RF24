@@ -197,7 +197,7 @@ void mode() {
 
 static PingPongThread pingPong;
 
-void setupSpiPins() {
+void setup_rf24_spi_pins() {
     palSetPadMode(GPIOB, GPIOB_CS_SPI, PAL_MODE_OUTPUT_PUSHPULL | PAL_STM32_OSPEED_HIGHEST);
     palSetPadMode(GPIOB, GPIOB_SPC, PAL_MODE_ALTERNATE(5) | PAL_STM32_OSPEED_HIGHEST);
     palSetPadMode(GPIOB, GPIOB_SDO, PAL_MODE_ALTERNATE(5) | PAL_STM32_OSPEED_HIGHEST);
@@ -213,7 +213,7 @@ int main(void) {
     sdStart(&SD2, &consoleConfig);
 
     // Set up SPI pins
-    setupSpiPins();
+    setup_rf24_spi_pins();
     setup();
     radio.printDetails();
     pingPong.start(NORMALPRIO);

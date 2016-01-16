@@ -119,7 +119,7 @@ uint8_t RF24::read_payload(void* buf, uint8_t data_len)
 
   if(data_len > payload_size) data_len = payload_size;
   uint8_t blank_len = dynamic_payloads_enabled ? 0 : payload_size - data_len;
-  
+
   //printf("[Reading %u bytes %u blanks]",data_len,blank_len);
 
   IF_SERIAL_DEBUG( printf("[Reading %u bytes %u blanks]\n",data_len,blank_len); );
@@ -717,9 +717,7 @@ bool RF24::txFifoEmpty(){
     return read_register(FIFO_STATUS) & _BV(TX_EMPTY);
 }
 
-void RF24::txFlushFailure() {
-    write_register(NRF_STATUS,_BV(MAX_RT) );
-    io.ce(LOW);
+void RF24::txFlush() {
     flush_tx();    //Non blocking, flush the data
 }
 /****************************************************************************/
@@ -734,7 +732,7 @@ bool RF24::txStandBy(){
 	// if the latest message is a failure and if it is, flush it.
 	while(!txFifoEmpty()) {
 		if( get_status() & _BV(MAX_RT)) {
-		    txFlushFailure();
+		    txFlush();
 			return false;
 		}
 		#if defined (FAILURE_HANDLING) || defined (RF24_LINUX)
@@ -849,11 +847,11 @@ void RF24::read( void* buf, uint8_t len ){
 
 /****************************************************************************/
 
-void RF24::whatHappened(bool& tx_ok,bool& tx_fail,bool& rx_ready)
+void RF24::whatHappened(bool &tx_ok,bool &tx_fail,bool &rx_ready)
 {
   // Read the status & reset the status in one easy call
   // Or is that such a good idea?
-  uint8_t status = write_register(NRF_STATUS,_BV(RX_DR) | _BV(TX_DS) | _BV(MAX_RT) );
+  uint8_t status = write_register(NRF_STATUS, _BV(RX_DR) | _BV(TX_DS) | _BV(MAX_RT) );
 
   // Report to the user what happened
   tx_ok = status & _BV(TX_DS);
