@@ -91,7 +91,6 @@ private:
     Mailbox<packet_t, QUEUE_COUNT> transmit_queue;
     packet_t transmit_packet;
     uint8_t transmit_pos;
-    systime_t transmit_ttl = TRANSMIT_TTL;
 
     // -------------------------------------------------------------
     // Receive state
