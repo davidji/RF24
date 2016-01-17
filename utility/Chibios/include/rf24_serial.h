@@ -51,7 +51,7 @@ const eventmask_t RX_EVENT = 0x1;
  */
 const eventmask_t TX_EVENT = 0x2;
 
-struct RF24Serial : EvtSource {
+struct RF24Serial {
     const struct PacketTransmitStreamVMT * const vmt;
 private:
 
@@ -72,7 +72,7 @@ private:
     THD_WORKING_AREA(wa, 256);
     ThreadReference radioThread;
 
-    bool ready() {
+    inline bool ready() {
         return (state == PTX || state == PRX);
     }
 
@@ -91,6 +91,7 @@ private:
     Mailbox<packet_t, QUEUE_COUNT> transmit_queue;
     packet_t transmit_packet;
     uint8_t transmit_pos;
+    systime_t transmit_ttl = TRANSMIT_TTL;
 
     // -------------------------------------------------------------
     // Receive state
@@ -116,7 +117,7 @@ private:
 
     inline void preWriteCheck() {
         validatePacket(transmit_packet);
-        chDbgAssert(transmit_pos >= PACKET_SIZE, "RF24Serial::preWriteCheck - overflow");
+        chDbgAssert(transmit_pos < PACKET_SIZE, "RF24Serial::preWriteCheck - overflow");
     }
 
     inline void preReadCheck() {
@@ -195,8 +196,6 @@ public:
     size_t write(const uint8_t *bp, size_t n);
     void print(const char *fmt, ...);
     msg_t flush(void);
-
-
 
     inline BaseSequentialStream *stream() {
         return (BaseSequentialStream *)this;

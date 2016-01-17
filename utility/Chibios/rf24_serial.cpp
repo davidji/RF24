@@ -118,7 +118,7 @@ inline void RF24Serial::receiveNonBlocking() {
         packet->length = radio.getDynamicPayloadSize();
         if(packet->length > 0) {
             receive_queue.post(packet, TIME_IMMEDIATE);
-            broadcastFlags(RX_EVENT);
+            // broadcastFlags(RX_EVENT);
         } else {
             freePacket(packet);
             stats.rx_empty++;
@@ -134,7 +134,7 @@ inline void RF24Serial::transmitNonBlocking() {
 inline bool RF24Serial::transmitNext() {
     packet_t packet;
     if(transmit_queue.fetch(&packet, TIME_IMMEDIATE) == MSG_OK) {
-        broadcastFlags(TX_EVENT);
+        // broadcastFlags(TX_EVENT);
         radio.startFastWrite(packet->data, packet->length, false);
         freePacket(packet);
         return true;
@@ -174,14 +174,20 @@ void RF24Serial::eventMain() {
             }
 
             if(tx_fail) {
-                /* There are two conflicting requirements here: this is a serial emulation
-                 * so gaps are not expected, but when a receiver joins it expects the data
-                 * to be current. The real solution is to implement a TTL to discard packets.
-                 * When a packet is discarded, we could discard all packets until a flush,
-                 * taking the flush to mean a frame.
-                 */
                 stats.max_rt++;
+                // The easiest thing to do right now is flush the failure. It would be
+                // preferable not to: If the sender wants to ensure freshness, it needs
+                // to coalesce data while blocked trying to write.
                 radio.txFlush();
+                // FIXME: reverse exponential backoff?
+                // FIXME: throw everything away in the queue, so the next sent packet is
+                // fresh. E.g. we don't want stale commands.
+                // FIXME: alternatively, throw everything away to the next flush. I could allow
+                // flush() to queue an empty packet, having transmitNext() discard it.
+
+                // A flush is like a transmit, if you don't fill up the pipe again,
+                // everything ends up live locked.
+                transmitNonBlocking();
             }
 
             if(tx_ok) {
