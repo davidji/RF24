@@ -114,8 +114,8 @@ void RF24Serial::irq() {
 inline void RF24Serial::receiveNonBlocking() {
     while(receiveReady()) {
         packet_t packet = allocPacket();
-        radio.read(packet->data, PACKET_SIZE);
         packet->length = radio.getDynamicPayloadSize();
+        radio.read(packet->data, packet->length);
         if(packet->length > 0) {
             receive_queue.post(packet, TIME_IMMEDIATE);
             // broadcastFlags(RX_EVENT);
@@ -142,7 +142,6 @@ inline bool RF24Serial::transmitNext() {
         return false;
     }
 }
-
 
 void RF24Serial::eventMain() {
 
@@ -175,19 +174,23 @@ void RF24Serial::eventMain() {
 
             if(tx_fail) {
                 stats.max_rt++;
-                // The easiest thing to do right now is flush the failure. It would be
-                // preferable not to: If the sender wants to ensure freshness, it needs
-                // to coalesce data while blocked trying to write.
-                radio.txFlush();
-                // FIXME: reverse exponential backoff?
-                // FIXME: throw everything away in the queue, so the next sent packet is
-                // fresh. E.g. we don't want stale commands.
-                // FIXME: alternatively, throw everything away to the next flush. I could allow
-                // flush() to queue an empty packet, having transmitNext() discard it.
-
-                // A flush is like a transmit, if you don't fill up the pipe again,
-                // everything ends up live locked.
-                transmitNonBlocking();
+                switch (mode) {
+                case PTX_ONLY:
+                    radio.reUseTX();
+                    break;
+                case PRX_ONLY:
+                    break;
+                case AUTO:
+                    stateMutex.lock();
+                    if(state == PTX) {
+                        // FIXME: is reUseTX needed here, or will the head of the
+                        // transmit FIFO just be used in the next ack packet regardless?
+                        radio.startListening();
+                        state = PRX;
+                    }
+                    stateMutex.unlock();
+                    break;
+                }
             }
 
             if(tx_ok) {
