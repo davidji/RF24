@@ -717,9 +717,13 @@ bool RF24::txFifoEmpty(){
     return read_register(FIFO_STATUS) & _BV(TX_EMPTY);
 }
 
-void RF24::txFlush() {
-    flush_tx();    //Non blocking, flush the data
+/****************************************************************************/
+
+void RF24::txReset() {
+    io.ce(LOW); // Enter STANDBY-I mode
+    flush_tx(); // Flush the transmit buffer
 }
+
 /****************************************************************************/
 
 bool RF24::txStandBy(){
@@ -728,11 +732,11 @@ bool RF24::txStandBy(){
 		uint32_t timeout = millis();
 	#endif
 	// The following roughtly translates to:
-	// while there's no the TX FIFO is not empty, check
+	// while the TX FIFO is not empty, check
 	// if the latest message is a failure and if it is, flush it.
 	while(!txFifoEmpty()) {
 		if( get_status() & _BV(MAX_RT)) {
-		    txFlush();
+		    flush_tx();
 			return false;
 		}
 		#if defined (FAILURE_HANDLING) || defined (RF24_LINUX)
@@ -1042,14 +1046,11 @@ void RF24::enableDynamicAck(void){
 void RF24::writeAckPayload(uint8_t pipe, const void* buf, uint8_t len)
 {
   const uint8_t* current = reinterpret_cast<const uint8_t*>(buf);
-
   uint8_t data_len = rf24_min(len,32);
 
   beginTransaction();
   io.transfer(W_ACK_PAYLOAD | ( pipe & 0b111 ) );
-
-  while ( data_len-- )
-    io.transfer(*current++);
+  io.transfern(current, data_len);
   endTransaction();
 
 }

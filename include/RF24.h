@@ -298,15 +298,16 @@ s   *
   bool txFifoEmpty();
 
   /**
-   * Flush the message at the front of the transmit queue. If whatHappened returns tx_fail
-   * call this to discard that packet and start transmission again.
+   * Flush the transmit queue. If whatHappened returns tx_fail
+   * call this to discard the transmit queue and be ready to start
+   * transmitting again, by writing new packets.
    */
-  void txFlush();
+  void txReset();
 
   /**
    * Try and send the message at the head of the queue again.
    * If whatHappened returns tx_fail
-   * call this to discard to start transmission again, retrying the last packet
+   * call this to start transmission again, retrying the last packet
    */
   void txRetry();
 
@@ -559,7 +560,7 @@ s   *
    *
    */
   void startWrite( const void* buf, uint8_t len, const bool multicast );
-  
+
   /**
    * This function is mainly used internally to take advantage of the auto payload
    * re-use functionality of the chip, but can be beneficial to users as well.

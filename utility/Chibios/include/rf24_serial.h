@@ -37,7 +37,7 @@ typedef enum {
 } ReceiveStatus;
 
 typedef enum {
-    AUTO, PTX_ONLY, PRX_ONLY
+    ADHOC, PTX_ONLY, PRX_ONLY
 } Mode;
 
 /**
@@ -56,8 +56,11 @@ struct RF24Serial {
 private:
 
     RF24 &radio;
+    uint8_t readPipe = 0;
+    const uint8_t *readAddress = NULL;
+    const uint8_t *writeAddress = NULL;
     volatile State state = State::STOP;
-    Mode mode = Mode::AUTO;
+    Mode mode = Mode::ADHOC;
     Error error = Error::NONE;
     Mutex stateMutex;
 
@@ -74,6 +77,21 @@ private:
 
     inline bool ready() {
         return (state == PTX || state == PRX);
+    }
+
+    /**
+     * transition from state now, to state next, or do nothing
+     * @param now this must match the current state
+     * @param next this will be the new state, if the current state matches now
+     * @return true if the current state matches now, false otherwise
+     */
+    inline bool transition(State now, State next) {
+        bool valid;
+        stateMutex.lock();
+        valid = (state == now);
+        state = valid ? next : state;
+        stateMutex.unlock();
+        return valid;
     }
 
     // -------------------------------------------------------------
@@ -95,6 +113,7 @@ private:
     // -------------------------------------------------------------
     // Receive state
     Mailbox<packet_t, QUEUE_COUNT> receive_queue;
+    size_t receive_queue_available;
     packet_t receive_packet;
     uint8_t receive_pos;
     ReceiveStatus receive_status;
@@ -137,8 +156,8 @@ private:
     // -------------------------------------------------------------
     // Transmit private methods
     void transmitEventLoop();
-    void transmitNonBlocking();
-    bool transmitNext();
+    void transmitNonBlocking(bool ack = false);
+    bool transmitNext(bool ack);
 
     inline msg_t flushIfFull() {
         return (transmit_pos < PACKET_SIZE) ? MSG_OK : flush();
@@ -157,10 +176,34 @@ private:
     msg_t receiveEnsureAvailable();
     void receiveFreeBufferIfEmpty();
 
+    void whatHappened(bool &tx_ok, bool &tx_fail, bool &rx_ready);
+    void ptxMain();
+    void prxMain();
+    void adhocMain();
+
 public:
     RF24Serial(RF24 &rf24);
+
+    inline void ptx(const uint8_t *address) {
+        mode = Mode::PTX_ONLY;
+        writeAddress = address;
+    }
+
+    inline void prx(uint8_t pipe, const uint8_t *address) {
+        mode = Mode::PRX_ONLY;
+        readPipe = pipe;
+        readAddress = address;
+    }
+
+    inline void adhoc(uint8_t pipe, const uint8_t *readAddress, const uint8_t *writeAddress) {
+        mode = Mode::PRX_ONLY;
+        readPipe = pipe;
+        readAddress = readAddress;
+        writeAddress = writeAddress;
+    }
+
     void reset();
-    void start(Mode mode = Mode::AUTO);
+    void start();
     void stop();
     void main();
     void irq();
@@ -180,6 +223,13 @@ public:
      * @return the number of characters read
      */
     size_t read(uint8_t *bp, size_t n);
+
+    /**
+     * Get the number of characters readable without blocking.
+     * This number might be conservative.
+     * @return
+     */
+    size_t available();
 
     /**
      * Read one packet.
