@@ -806,7 +806,6 @@ uint8_t RF24::getDynamicPayloadSize(void)
   result = io.transfer(0xff);
   endTransaction();
 
-  if(result > 32) { flush_rx(); delay(2); return 0; }
   return result;
 }
 
@@ -861,6 +860,23 @@ void RF24::whatHappened(bool &tx_ok,bool &tx_fail,bool &rx_ready)
   tx_ok = status & _BV(TX_DS);
   tx_fail = status & _BV(MAX_RT);
   rx_ready = status & _BV(RX_DR);
+}
+
+/****************************************************************************/
+
+Status RF24::status(bool reset)
+{
+  Status sstruct;
+  // Either read and reset the interrupts in a single operation, or just read
+  uint8_t status = reset ? write_register(NRF_STATUS, _BV(RX_DR) | _BV(TX_DS) | _BV(MAX_RT) ) : read_register(NRF_STATUS);
+
+  sstruct.max_rt = status & _BV(MAX_RT);
+  sstruct.rx_dr = status & _BV(RX_DR);
+  sstruct.tx_ds = status & _BV(TX_DS);
+  sstruct.rx_p_no = (status >> RX_P_NO) & 0b111;
+  sstruct.tx_full = status & _BV(TX_FULL);
+
+  return sstruct;
 }
 
 /****************************************************************************/

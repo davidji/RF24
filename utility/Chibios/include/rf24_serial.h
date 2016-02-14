@@ -10,7 +10,7 @@ namespace serial {
 
 using namespace chibios_rt;
 
-static const size_t PACKET_SIZE = 32;
+static const uint8_t PACKET_SIZE = 32;
 static const uint8_t PACKET_COUNT = 5;
 static const size_t PACKET_POOL_COUNT = 2 * PACKET_COUNT;
 static const size_t QUEUE_COUNT = PACKET_COUNT - 2;
@@ -63,6 +63,8 @@ private:
     Mode mode = Mode::ADHOC;
     Error error = Error::NONE;
     Mutex stateMutex;
+    // We keep the last status result here
+    Status status;
 
     // This is a blob of memory big enough to hold all the packets we could need
     __attribute__((aligned(sizeof(void *))))
@@ -171,12 +173,14 @@ private:
         return (receive_packet == NULL || receive_pos == receive_packet->length);
     }
 
-    bool receiveReady();
+    int receiveFreeCount();
+    void receive();
     void receiveNonBlocking();
+    void receiveAckNonBlocking();
     msg_t receiveEnsureAvailable();
     void receiveFreeBufferIfEmpty();
 
-    void whatHappened(bool &tx_ok, bool &tx_fail, bool &rx_ready);
+    Status whatHappened();
     void ptxMain();
     void prxMain();
     void adhocMain();
@@ -251,7 +255,10 @@ public:
     }
 
     struct {
-        uint32_t tx = 0, rx = 0, irq = 0, rx_dr = 0, tx_ok = 0, max_rt = 0, rx_empty = 0;
+        uint32_t tx = 0, rx = 0, irq = 0, rx_dr = 0, tx_ds = 0, max_rt = 0, rx_empty = 0, rx_fail = 0;
+        uint32_t rx_pipe[8] = { 0,0,0,0,0,0,0,0 };
+        uint32_t rx_wait = 0;
+        bool tx_full = false;
     } stats;
 
 };

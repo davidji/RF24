@@ -17,10 +17,16 @@ void Rf24ChibiosIo::begin() {
 }
 
 void Rf24ChibiosIo::beginTransaction() {
+#ifdef SPI_USE_MUTUAL_EXCLUSION
+    spiAcquireBus(driver);
+#endif
     // spiStart(driver, config);
 }
 
 void Rf24ChibiosIo::endTransaction() {
+#ifdef SPI_USE_MUTUAL_EXCLUSION
+    spiReleaseBus(driver);
+#endif
     // spiStop(driver);
 }
 

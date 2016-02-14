@@ -1,3 +1,5 @@
+#include <algorithm>
+
 #include "ch.hpp"
 #include "hal.h"
 #include "chprintf.h"
@@ -111,16 +113,6 @@ void RF24Serial::print(const char* fmt, ...) {
     va_end(ap);
 }
 
-inline bool RF24Serial::receiveReady() {
-    cnt_t free;
-    System::lock();
-    free = receive_queue.getFreeCountI();
-    System::unlock();
-
-    return (free > 0) && radio.available();
-}
-
-
 void RF24Serial::irq() {
     chSysLockFromISR();
     if(ready()) {
@@ -129,28 +121,34 @@ void RF24Serial::irq() {
     chSysUnlockFromISR();
 }
 
+int RF24Serial::receiveFreeCount() {
+    cnt_t free;
+    System::lock();
+    free = receive_queue.getFreeCountI();
+    System::unlock();
+    return free;
+}
 
+void RF24Serial::receive() {
+    uint8_t length = min(PACKET_SIZE, radio.getDynamicPayloadSize());
+    packet_t packet = allocPacket();
+    packet->length = length;
+    radio.read(packet->data, length);
+    System::lock();
+    receive_queue.postI(packet);
+    receive_queue_available += length;
+    System::unlock();
+    status = radio.status();
+}
 
-inline void RF24Serial::receiveNonBlocking() {
-    while(receiveReady()) {
-        uint8_t length = radio.getDynamicPayloadSize();
-        if(length > 1) {
-            packet_t packet = allocPacket();
-            packet->length = length;
-            radio.read(packet->data, length);
-            System::lock();
-            receive_queue.postI(packet);
-            receive_queue_available += length;
-            System::unlock();
-            // broadcastFlags(RX_EVENT);
-        }
+void RF24Serial::receiveNonBlocking() {
+    for(int free = receiveFreeCount(); (free > 0) && (status.rx_p_no != RX_P_NO_EMPTY) && radio.available(); --free) {
+        receive();
     }
 }
 
 inline void RF24Serial::transmitNonBlocking(bool ack) {
-    while(!radio.txFifoFull()) {
-        if(!transmitNext(ack)) break;
-    }
+    while(!status.tx_full && transmitNext(ack)) {};
 }
 
 inline bool RF24Serial::transmitNext(bool ack) {
@@ -163,45 +161,44 @@ inline bool RF24Serial::transmitNext(bool ack) {
             radio.startFastWrite(packet->data, packet->length, false);
         }
         freePacket(packet);
+        status = radio.status();
         return true;
     } else {
         return false;
     }
 }
 
-void RF24Serial::whatHappened(bool &tx_ok, bool &tx_fail, bool &rx_ready) {
+Status RF24Serial::whatHappened() {
     stats.irq++;
-    radio.whatHappened(tx_ok, tx_fail, rx_ready);
-    if(rx_ready) stats.rx_dr++;
-    if(tx_fail) stats.max_rt++;
-    if(tx_ok) stats.tx_ok++;
+    Status status = radio.status(true);
+    if(status.rx_dr) {
+        stats.rx_dr++;
+        stats.rx_pipe[status.rx_p_no]++;
+    }
+    if(status.max_rt) stats.max_rt++;
+    if(status.tx_ds) stats.tx_ds++;
+    stats.tx_full = status.tx_full;
+    return status;
 }
 
 void RF24Serial::ptxMain() {
     if(transition(STARTING, PTX)) {
         while (true) {
             eventmask_t events = chEvtWaitAny(STOP_EVENT | IRQ_EVENT | POST_EVENT | FETCH_EVENT);
-            bool tx_ok = false, tx_fail = false, rx_ready = false;
 
             if(events & STOP_EVENT) {
                 break;
             }
 
             if(events & IRQ_EVENT) {
-                whatHappened(tx_ok, tx_fail, rx_ready);
-                if (tx_fail) {
+                status = whatHappened();
+                if (status.max_rt) {
                     radio.reUseTX();
                 }
             }
 
-            if(tx_ok || (events & POST_EVENT)) {
-                transmitNonBlocking();
-            }
-
-            if(tx_ok || (events & FETCH_EVENT)) {
-                receiveNonBlocking();
-            }
-
+            receiveNonBlocking();
+            transmitNonBlocking();
         }
     }
 }
@@ -210,25 +207,15 @@ void RF24Serial::prxMain() {
     if(transition(STARTING, PRX)) {
         radio.startListening();
         while (true) {
-            eventmask_t events = chEvtWaitAny(STOP_EVENT | IRQ_EVENT | POST_EVENT | FETCH_EVENT);
-            bool tx_ok = false, tx_fail = false, rx_ready = false;
-
+            eventmask_t events = chEvtWaitAnyTimeout(STOP_EVENT | IRQ_EVENT | POST_EVENT | FETCH_EVENT, MS2ST(4));
             if(events & STOP_EVENT) {
                 break;
-            }
-
-            if(events & IRQ_EVENT) {
-                whatHappened(tx_ok, tx_fail, rx_ready);
-                if (tx_fail) {
-                    radio.reUseTX();
+            } else {
+                if(events & IRQ_EVENT || events == 0) {
+                    status = whatHappened();
                 }
-            }
 
-            if (rx_ready || (events & FETCH_EVENT)) {
                 receiveNonBlocking();
-            }
-
-            if(tx_ok || (events & POST_EVENT)) {
                 transmitNonBlocking(true);
             }
         }
@@ -241,28 +228,28 @@ void RF24Serial::adhocMain() {
         while(ready()) {
             switch(chEvtWaitOne(STOP_EVENT | IRQ_EVENT | POST_EVENT | FETCH_EVENT)) {
             case IRQ_EVENT:
-                bool tx_ok, tx_fail, rx_ready;
-                whatHappened(tx_ok, tx_fail, rx_ready);
-                if(rx_ready) {
-                    receiveNonBlocking();
-                }
+                {
+                    Status status = whatHappened();
+                    if(status.rx_dr) {
+                        receiveNonBlocking();
+                    }
 
-                if(tx_fail) {
-                    if(transition(PTX, PRX)) {
-                        radio.startListening();
+                    if(status.max_rt) {
+                        if(transition(PTX, PRX)) {
+                            radio.startListening();
+                        }
+                    }
+
+                    if(status.tx_ds) {
+                        transmitNonBlocking();
+                        stateMutex.lock();
+                        if(state == PTX && radio.txFifoEmpty()) {
+                            radio.startListening();
+                            state = PRX;
+                        }
+                        stateMutex.unlock();
                     }
                 }
-
-                if(tx_ok) {
-                    transmitNonBlocking();
-                    stateMutex.lock();
-                    if(state == PTX && radio.txFifoEmpty()) {
-                        radio.startListening();
-                        state = PRX;
-                    }
-                    stateMutex.unlock();
-                }
-
                 break;
             case POST_EVENT:
                 stateMutex.lock();

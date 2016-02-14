@@ -38,12 +38,14 @@ typedef enum { RF24_1MBPS = 0, RF24_2MBPS, RF24_250KBPS } rf24_datarate_e;
  */
 typedef enum { RF24_CRC_DISABLED = 0, RF24_CRC_8, RF24_CRC_16 } rf24_crclength_e;
 
+static const unsigned int RX_P_NO_EMPTY = 0b111;
+
 struct Status {
-    bool tx_full : 1;
-    unsigned int rx_p_no : 3;
-    bool max_rt : 1;
-    bool tx_ds : 1;
-    bool rx_dr : 1;
+    bool tx_full : 1; /**< transmit fifo is full */
+    unsigned int rx_p_no : 3; /** the first value in the rx fifo is for pipe, or RX_P_NO_EMPTY */
+    bool max_rt : 1; /**< max retries interrupt flag */
+    bool tx_ds : 1; /**< data sent interrupt */
+    bool rx_dr : 1; /**< data received interrupt */
 };
 
 /**
@@ -512,6 +514,13 @@ s   *
    * @param[out] rx_ready There is a message waiting to be read (RX_DS)
    */
   void whatHappened(bool& tx_ok,bool& tx_fail,bool& rx_ready);
+
+  /**
+   * Returns the status register, de-structured into bit fields.
+   * @param reset if true, the interrupts will be cleared, making this an alternative to whatHappenned
+   * @return the current status
+   */
+  Status status(bool reset = false);
 
   /**
    * Non-blocking write to the open writing pipe used for buffered writes
