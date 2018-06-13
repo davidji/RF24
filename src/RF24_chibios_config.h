@@ -23,8 +23,8 @@
  */
  
  
-#ifndef __ARCH_CONFIG_H__
-#define __ARCH_CONFIG_H__
+#ifndef __RF24_CHIBIOS_CONFIG_H__
+#define __RF24_CHIBIOS_CONFIG_H__
 
 #include <stddef.h>
 #include <stdint.h>

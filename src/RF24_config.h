@@ -25,8 +25,9 @@
 #define rf24_max(a,b) (a>b?a:b)
 #define rf24_min(a,b) (a<b?a:b)
 
-
-#include <RF24_arch_config.h>
+#if  defined(CHIBIOS)
+#include <RF24_chibios_config.h>
+#endif
 
 #ifndef RF24_250KBPS_TX_RX_DELAY
 #define RF24_250KBPS_TX_RX_DELAY 450

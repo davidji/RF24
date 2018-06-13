@@ -24,7 +24,7 @@
   /**
    * Load the correct configuration for this platform
   */
-  #include "RF24_arch_config.h"
+  #include "../../../src/RF24_chibios_config.h"
   
 #endif
 

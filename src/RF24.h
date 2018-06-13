@@ -15,7 +15,7 @@
 #ifndef __RF24_H__
 #define __RF24_H__
 
-#include "RF24_config.h"
+#include "../src/RF24_config.h"
 
 /**
  * Power Amplifier level.
@@ -189,8 +189,8 @@ public:
    * Only one writing pipe can be open at once, but you can change the address
    * you'll write to. Call stopListening() first.
    *
-   * Addresses are assigned via a byte array, default is 5 byte address length
-s   *
+   * Addresses are assigned via a byte array, default is 5 byte address lengths
+   *
    * @code
    *   uint8_t addresses[][6] = {"1Node","2Node"};
    *   radio.openWritingPipe(addresses[0]);
