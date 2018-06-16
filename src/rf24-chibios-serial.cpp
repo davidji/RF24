@@ -1,3 +1,6 @@
+
+#ifdef __CHIBIOS__
+
 #include <algorithm>
 
 #include "ch.hpp"
@@ -423,3 +426,5 @@ void RF24Serial::setError(Error _error) {
 
 }
 }
+
+#endif // __CHIBIOS__

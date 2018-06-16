@@ -125,3 +125,5 @@
 #define RF_DR_HIGH  3
 #define RF_PWR_LOW  1
 #define RF_PWR_HIGH 2
+
+#define RF24_SPI_SPEED 10000000

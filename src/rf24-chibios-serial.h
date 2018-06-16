@@ -1,6 +1,7 @@
-#ifndef _RF24_SERIAL_H_
-#define _RF24_SERIAL_H_
+#ifndef _RF24_CHIBIOS_SERIAL_H_
+#define _RF24_CHIBIOS_SERIAL_H_
 
+#ifdef __CHIBIOS__
 #include <ch.hpp>
 #include <chdebug.h>
 #include <RF24.h>
@@ -265,4 +266,5 @@ public:
 
 }
 }
-#endif
+#endif // __CHIBIOS__
+#endif // _RF24_CHIBIOS_SERIAL_

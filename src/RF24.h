@@ -15,7 +15,7 @@
 #ifndef __RF24_H__
 #define __RF24_H__
 
-#include "../src/RF24_config.h"
+#include "rf24-config.h"
 
 /**
  * Power Amplifier level.
@@ -52,6 +52,7 @@ struct Status {
  * Driver for nRF24L01(+) 2.4GHz Wireless Transceiver
  */
 
+template<typename RF24_IO>
 class RF24
 {
 private:
@@ -63,17 +64,6 @@ private:
   uint8_t addr_width; /**< The address width to use - 3,4 or 5 bytes. */
   uint32_t txRxDelay; /**< Var for adjusting delays depending on datarate */
 
-
-protected:
-  /**
-   * SPI transactions
-   *
-   * Common code for SPI transactions including CSN toggle
-   *
-   */
-  inline void beginTransaction();
-
-  inline void endTransaction();
 
 public:
 

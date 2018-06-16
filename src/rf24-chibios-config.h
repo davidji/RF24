@@ -8,30 +8,16 @@
 
  */
  
- /**
- * @file RF24_arch_config.h
- * General defines and includes for RF24/Linux
- */
-
- /**
- * Example of RF24_arch_config.h for RF24 portability
- *
- * @defgroup Porting_General Porting: General
- *
- * 
- * @{
- */
- 
- 
 #ifndef __RF24_CHIBIOS_CONFIG_H__
 #define __RF24_CHIBIOS_CONFIG_H__
 
+#ifdef __CHIBIOS__
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
 #include "ch.h"
 #include "hal.h"
-#include "rf24_chibios_io.h"
+#include "rf24-chibios-io.h"
 
 #define RF24_IO Rf24ChibiosIo
 #define RF24_FAST_TIMING
@@ -83,7 +69,7 @@ extern void printf_P(const char *fmt, ...);
 #define LOW PAL_LOW
 #define HIGH PAL_HIGH
 
-#endif // __ARCH_CONFIG_H__
-
+#endif // __CHIBIOS__
+#endif // __RF24_CHIBIOS_CONFIG_H__
 
 /*@}*/	

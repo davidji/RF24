@@ -1,6 +1,9 @@
 
-#include "rf24_chibios_io.h"
 
+
+#include "rf24-chibios-io.h"
+
+#ifdef __CHIBIOS__
 Rf24ChibiosIo::Rf24ChibiosIo(
         SPIDriver* driver,
         const SPIConfig* config,
@@ -20,23 +23,15 @@ void Rf24ChibiosIo::beginTransaction() {
 #ifdef SPI_USE_MUTUAL_EXCLUSION
     spiAcquireBus(driver);
 #endif
-    // spiStart(driver, config);
-}
-
-void Rf24ChibiosIo::endTransaction() {
-#ifdef SPI_USE_MUTUAL_EXCLUSION
-    spiReleaseBus(driver);
-#endif
-    // spiStop(driver);
-}
-
-void Rf24ChibiosIo::select() {
     spiSelect(driver);
     chThdSleepMicroseconds(5);
 }
 
-void Rf24ChibiosIo::unselect() {
+void Rf24ChibiosIo::endTransaction() {
     spiUnselect(driver);
+#ifdef SPI_USE_MUTUAL_EXCLUSION
+    spiReleaseBus(driver);
+#endif
 }
 
 uint8_t Rf24ChibiosIo::transfer(uint8_t tx) {
@@ -56,4 +51,4 @@ void Rf24ChibiosIo::transfern(const uint8_t* buf, uint32_t len) {
 void Rf24ChibiosIo::ce(bool level) {
     palWritePad(ce_port, ce_pad, level);
 }
-
+#endif

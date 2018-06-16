@@ -11,7 +11,7 @@
  * 
  * @{
  */
-
+#ifdef __CHIBIOS__
 #include <stdint.h>
 #include "ch.h"
 #include "hal.h"
@@ -88,5 +88,5 @@ private:
 
 };
 
-/*@}*/
+#endif
 #endif
