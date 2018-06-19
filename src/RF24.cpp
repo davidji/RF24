@@ -68,7 +68,7 @@ uint8_t RF24<IO>::read_payload(void* buf, uint8_t data_len)
   data_len = rf24_min(data_len, RF24_MAX_PAYLOAD);
 
   io.beginTransaction();
-  status = io.transfer( R_RX_PAYLOAD );
+  status = io.transfer(R_RX_PAYLOAD);
   while ( data_len-- ) {
     *current++ = io.transfer(0xFF);
   }
@@ -81,24 +81,21 @@ uint8_t RF24<IO>::read_payload(void* buf, uint8_t data_len)
 /****************************************************************************/
 
 template<typename IO>
-uint8_t RF24<IO>::flush_rx(void)
-{
+uint8_t RF24<IO>::flush_rx(void) {
   return spiTrans( FLUSH_RX );
 }
 
 /****************************************************************************/
 
 template<typename IO>
-uint8_t RF24<IO>::flush_tx(void)
-{
+uint8_t RF24<IO>::flush_tx(void) {
   return spiTrans( FLUSH_TX );
 }
 
 /****************************************************************************/
 
 template<typename IO>
-uint8_t RF24<IO>::spiTrans(uint8_t cmd)
-{
+uint8_t RF24<IO>::spiTrans(uint8_t cmd) {
   uint8_t status;
 
   io.beginTransaction();
@@ -111,15 +108,13 @@ uint8_t RF24<IO>::spiTrans(uint8_t cmd)
 /****************************************************************************/
 
 template<typename IO>
-void RF24<IO>::setChannel(uint8_t channel)
-{
+void RF24<IO>::setChannel(uint8_t channel) {
   const uint8_t max_channel = 127;
   write_register(RF_CH,rf24_min(channel,max_channel));
 }
 
 template<typename IO>
-uint8_t RF24<IO>::getChannel()
-{
+uint8_t RF24<IO>::getChannel() {
   return read_register(RF_CH);
 }
 
@@ -240,8 +235,7 @@ void RF24<IO>::stopListening(void)
 /****************************************************************************/
 
 template<typename IO>
-void RF24<IO>::powerDown(void)
-{
+void RF24<IO>::powerDown(void) {
   io.ce(LOW); // Guarantee CE is low on powerDown
   write_register(CONFIG,read_register(CONFIG) & ~_BV(PWR_UP));
 }
@@ -250,8 +244,7 @@ void RF24<IO>::powerDown(void)
 
 //Power up now. Radio will not power down unless instructed by MCU for config changes etc.
 template<typename IO>
-void RF24<IO>::powerUp(void)
-{
+void RF24<IO>::powerUp(void) {
    uint8_t cfg = read_register(CONFIG);
 
    // if not powered up then power up and wait for the radio to initialize
@@ -371,10 +364,10 @@ bool RF24<IO>::writeFast( const void* buf, uint8_t len, const bool multicast )
 	
 	while(status().txFifoFull()) {			  //Blocking only if FIFO is full. This will loop and block until TX is successful or fail
 
-		if(status().maxRetries()){
-			//reUseTX();										  //Set re-transmit
-			write_register(NRF_STATUS,_BV(MAX_RT) );			  //Clear max retry flag
-			return 0;										  //Return 0. The previous payload has been retransmitted
+		if(status().maxRetries()) {
+
+			write_register(NRF_STATUS,_BV(MAX_RT));			  //Clear max retry flag
+			return false;										  //Return 0. The previous payload has been retransmitted
 															  //From the user perspective, if you get a 0, just keep trying to send the same payload
 		}
 		#if defined (FAILURE_HANDLING) || defined (RF24_LINUX)
@@ -386,7 +379,8 @@ bool RF24<IO>::writeFast( const void* buf, uint8_t len, const bool multicast )
 			}
 		#endif
   	}
-		     //Start Writing
+
+  //Start Writing
 	startFastWrite(buf,len,multicast);
 
 	return 1;
@@ -406,8 +400,6 @@ bool RF24<IO>::writeFast( const void* buf, uint8_t len ){
 
 template<typename IO>
 void RF24<IO>::startFastWrite(const void* buf, uint8_t len, const bool multicast, bool startTx){ //TMRh20
-
-	//write_payload( buf,len);
 	write_payload( buf, len,multicast ? W_TX_PAYLOAD_NO_ACK : W_TX_PAYLOAD ) ;
 	if(startTx){
 		io.ce(HIGH);
@@ -420,11 +412,7 @@ void RF24<IO>::startFastWrite(const void* buf, uint8_t len, const bool multicast
 //Added the original startWrite back in so users can still use interrupts, ack payloads, etc
 //Allows the library to pass all tests
 template<typename IO>
-void RF24<IO>::startWrite( const void* buf, uint8_t len, const bool multicast ){
-
-  // Send the payload
-
-  //write_payload( buf, len );
+void RF24<IO>::startWrite( const void* buf, uint8_t len, const bool multicast ) {
   write_payload( buf, len,multicast? W_TX_PAYLOAD_NO_ACK : W_TX_PAYLOAD ) ;
   io.ce(HIGH);
   #if defined(CORE_TEENSY) || !defined(ARDUINO) || defined (RF24_BBB) || defined (RF24_DUE)
@@ -433,20 +421,6 @@ void RF24<IO>::startWrite( const void* buf, uint8_t len, const bool multicast ){
   io.ce(LOW);
 
 
-}
-
-/****************************************************************************/
-
-template<typename IO>
-bool RF24<IO>::rxFifoFull(){
-	return read_register(FIFO_STATUS) & _BV(RX_FULL);
-}
-
-/****************************************************************************/
-
-template<typename IO>
-bool RF24<IO>::txFifoEmpty(){
-    return read_register(FIFO_STATUS) & _BV(TX_EMPTY);
 }
 
 /****************************************************************************/
@@ -468,10 +442,10 @@ bool RF24<IO>::txStandBy(){
 	// The following roughtly translates to:
 	// while the TX FIFO is not empty, check
 	// if the latest message is a failure and if it is, flush it.
-	while(!txFifoEmpty()) {
+	while(!fifoStatus().txEmpty()) {
 		if(status().maxRetries()) {
 		    flush_tx();
-			return false;
+			  return false;
 		}
 		#if defined (FAILURE_HANDLING) || defined (RF24_LINUX)
 			if( millis() - timeout > 85){
@@ -549,15 +523,14 @@ uint8_t RF24<IO>::getDynamicPayloadSize(void)
 
 template<typename IO>
 void RF24<IO>::read( void* buf, uint8_t len ) {
-  read_payload( buf, len );
+  read_payload(buf, len);
   status(true);
 }
 
 /****************************************************************************/
 
 template<typename IO>
-Status RF24<IO>::status(bool reset)
-{
+Status RF24<IO>::status(bool reset) {
   // Either read and reset the interrupts in a single operation, or just read
   uint8_t status = reset ? write_register(NRF_STATUS, _BV(RX_DR) | _BV(TX_DS) | _BV(MAX_RT) ) : read_register(NRF_STATUS);
   return  { status };
@@ -568,6 +541,7 @@ static const uint8_t child_pipe[] PROGMEM =
 {
   RX_ADDR_P0, RX_ADDR_P1, RX_ADDR_P2, RX_ADDR_P3, RX_ADDR_P4, RX_ADDR_P5
 };
+
 static const uint8_t child_payload_size[] PROGMEM =
 {
   RX_PW_P0, RX_PW_P1, RX_PW_P2, RX_PW_P3, RX_PW_P4, RX_PW_P5
@@ -637,72 +611,31 @@ void RF24<IO>::toggle_features(void)
 /****************************************************************************/
 
 template<typename IO>
-void RF24<IO>::enableAckPayload(void)
-{
-  //
-  // enable ack payload and dynamic payload features
-  //
+void RF24<IO>::enableAckPayload(void) {
+  // Enable ack payload and dynamic payload features
   write_register(FEATURE,read_register(FEATURE) | _BV(EN_ACK_PAY) | _BV(EN_DPL) );
-
-  //
   // Enable dynamic payload on pipes 0 & 1
-  //
   write_register(DYNPD,read_register(DYNPD) | _BV(DPL_P1) | _BV(DPL_P0));
 }
 
 /****************************************************************************/
 
 template<typename IO>
-void RF24<IO>::writeAckPayload(uint8_t pipe, const void* buf, uint8_t len)
-{
-  const uint8_t* current = reinterpret_cast<const uint8_t*>(buf);
-  uint8_t data_len = rf24_min(len,32);
-
-  io.beginTransaction();
-  io.transfer(W_ACK_PAYLOAD | ( pipe & 0b111 ) );
-  io.transfern(current, data_len);
-  io.endTransaction();
-
+void RF24<IO>::writeAckPayload(uint8_t pipe, const void* buf, uint8_t len) {
+    write_payload(buf, len, W_ACK_PAYLOAD | ( pipe & 0b111 ));
 }
 
 /****************************************************************************/
 
 template<typename IO>
-void RF24<IO>::setAutoAck(bool enable)
-{
-    write_register(EN_AA, enable ? 0b111111 : 0);
+bool RF24<IO>::testCarrier(void) {
+  return (read_register(CD) & 1);
 }
 
 /****************************************************************************/
 
 template<typename IO>
-void RF24<IO>::setAutoAck(uint8_t pipe, bool enable)
-{
-  if ( pipe <= 6 )
-  {
-    uint8_t en_aa = read_register( EN_AA ) ;
-    if( enable ) {
-      en_aa |= _BV(pipe) ;
-    } else {
-      en_aa &= ~_BV(pipe) ;
-    }
-    write_register(EN_AA, en_aa) ;
-  }
-}
-
-/****************************************************************************/
-
-template<typename IO>
-bool RF24<IO>::testCarrier(void)
-{
-  return ( read_register(CD) & 1 );
-}
-
-/****************************************************************************/
-
-template<typename IO>
-bool RF24<IO>::testRPD(void)
-{
+bool RF24<IO>::testRPD(void) {
   return ( read_register(RPD) & 1 ) ;
 }
 

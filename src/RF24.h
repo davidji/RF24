@@ -38,6 +38,9 @@ struct Status {
 struct FifoStatus {
   uint8_t status;
   bool rxEmpty() { return status & _BV(RX_EMPTY); }
+  bool rxFull() { return status & _BV(RX_FULL); }
+  bool txEmpty() { return status & _BV(TX_EMPTY); }
+  bool txFull() { return status & _BV(TX_FULL); }
 };
 
 /**
@@ -65,6 +68,9 @@ public:
 
   RF24(RF24_IO io);
 
+  /**
+   * Set a setting
+   */
   bool set(SettingValue setting);
 
   /**
@@ -176,7 +182,6 @@ public:
    * @param address The address of the pipe to open. Coordinate these pipe
    * addresses amongst nodes on the network.
    */
-
   void openWritingPipe(const uint8_t *address);
 
   /**
@@ -206,20 +211,7 @@ public:
    * @param number Which pipe# to open, 0-5.
    * @param address The 24, 32 or 40 bit address of the pipe to open.
    */
-
   void openReadingPipe(uint8_t number, const uint8_t *address);
-
-  /**
-   * Check if the radio needs to be read. Can be used to prevent data loss
-   * @return True if all three 32-byte radio buffers are full
-   */
-  bool rxFifoFull();
-
-  /**
-   * Check if all the packets in the buffer have been sent.
-   * @return
-   */
-  bool txFifoEmpty();
 
   /**
    * Flush the transmit queue. If whatHappened returns tx_fail
@@ -423,6 +415,13 @@ public:
   Status status(bool reset = false);
 
   /**
+   * Get the fifo status.
+   * You can find out here if the device is ready to accept more
+   * packets from the microcontroller or the air.
+   */
+  FifoStatus fifoStatus();
+
+  /**
    * Non-blocking write to the open writing pipe used for buffered writes
    *
    * @note Optimization: This function now leaves the CE pin high, so the radio
@@ -602,13 +601,6 @@ public:
    */
   void setChannel(uint8_t channel);
   
-    /**
-   * Get RF communication channel
-   *
-   * @return The currently configured RF Channel
-   */
-  uint8_t getChannel(void);
-
   /**
    * Get Dynamic Payload Size
    *

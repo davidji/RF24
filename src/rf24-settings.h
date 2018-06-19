@@ -78,5 +78,24 @@ public:
   }
 };
 
+class AutoAck {
+public:
+  static constexpr Setting pipe(uint8_t p) {
+    return { EN_AA, _BV(p) };
+  }
+
+  static constexpr SettingValue enableForPipe(uint8_t p) {
+    return { pipe(p), _BV(p) };
+  }
+
+  static constexpr SettingValue disableForPipe(uint8_t p) {
+    return { pipe(p), 0 };
+  }
+
+  static constexpr Setting all = { EN_AA,  0b111111 };
+  static constexpr SettingValue enable = { all, all.mask }; 
+  static constexpr SettingValue disable = { all, 0 }; 
+};
+
 
 #endif // __RF24_SETTINGS_H__
