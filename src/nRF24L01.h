@@ -55,8 +55,8 @@
 #define MASK_RX_DR  6
 #define MASK_TX_DS  5
 #define MASK_MAX_RT 4
-#define EN_CRC      3
-#define CRCO        2
+constexpr uint8_t EN_CRC = 3;
+constexpr uint8_t CRCO   = 2;
 #define PWR_UP      1
 #define PRIM_RX     0
 #define ENAA_P5     5

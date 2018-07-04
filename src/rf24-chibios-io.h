@@ -11,7 +11,7 @@
  * 
  * @{
  */
-#ifdef __CHIBIOS__
+#ifdef CHIBIOS
 #include <stdint.h>
 #include "ch.h"
 #include "hal.h"
@@ -22,7 +22,7 @@ public:
 	/**
 	* SPI constructor
 	*/
-	Rf24ChibiosIo(SPIDriver *driver, const SPIConfig *config, ioportid_t ce_port, uint8_t ce_pad);
+	Rf24ChibiosIo(SPIDriver *driver, const SPIConfig *config, ioline_t ce);
 
 	Rf24ChibiosIo(Rf24ChibiosIo &io) = default;
 
@@ -57,7 +57,7 @@ public:
 	void transfernb(const uint8_t* tbuf, uint8_t* rbuf, uint32_t len);
 
 	/**
-	* Transfer a buffer of data without an rx buffer
+	* Transfer a buffer of data, discarding the responses
 	* @param buf Pointer to a buffer of data
 	* @param len Length of the data
 	*/	
@@ -80,12 +80,9 @@ public:
     void ce(bool level);
 
 private:
-
 	SPIDriver *driver;
 	const SPIConfig *config;
-	ioportid_t ce_port;
-	uint8_t ce_pad;
-
+	ioline_t ceLine;
 };
 
 #endif

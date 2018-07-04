@@ -11,7 +11,7 @@
 #ifndef __RF24_CHIBIOS_CONFIG_H__
 #define __RF24_CHIBIOS_CONFIG_H__
 
-#ifdef __CHIBIOS__
+#ifdef CHIBIOS
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
@@ -19,10 +19,9 @@
 #include "hal.h"
 #include "rf24-chibios-io.h"
 
-#define RF24_IO Rf24ChibiosIo
-#define RF24_FAST_TIMING
-
-#define _BV(x) (1<<(x))
+constexpr uint8_t _BV(uint8_t bit) {
+    return (1<<bit);
+}
 
 #undef SERIAL_DEBUG
 #ifdef SERIAL_DEBUG
@@ -61,7 +60,7 @@ static inline void delayMicroseconds(uint32_t usec) {
 }
 
 static inline long millis() {
-    return ST2MS(chVTGetSystemTime());
+    return TIME_I2MS(chVTGetSystemTime());
 }
 
 extern void printf_P(const char *fmt, ...);

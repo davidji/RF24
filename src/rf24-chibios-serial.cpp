@@ -1,12 +1,12 @@
 
-#ifdef __CHIBIOS__
+#ifdef CHIBIOS
 
 #include <algorithm>
 
 #include "ch.hpp"
 #include "hal.h"
 #include "chprintf.h"
-#include "rf24_serial.h"
+#include "rf24-chibios-serial.h"
 
 namespace rf24 {
 namespace serial {
@@ -45,10 +45,11 @@ static msg_t get(void *instance) {
 }
 
 const struct PacketTransmitStreamVMT VMT = {
-        write, read, put, get
+        0, write, read, put, get
 };
 
-RF24Serial::RF24Serial(RF24& rf24) : vmt(&VMT), radio(rf24), radioThread(NULL) {
+RF24Serial::RF24Serial(Rf24ChibiosIo io) : 
+vmt(&VMT), radio(io), radioThread(NULL) {
     state = STOP;
 }
 
@@ -60,8 +61,8 @@ static void radio_thread_start(void *instance) {
 void RF24Serial::start() {
     stateMutex.lock();
     if(state == State::STOP) {
-        radio.setAutoAck(true);
-        radio.setRetries(5,15);
+        radio.set(AutoAck::all.enable());
+        radio.set(Retries::retries(5,15));
 
         switch(mode) {
         case PRX_ONLY:
@@ -85,7 +86,7 @@ void RF24Serial::start() {
         transmit_packet = allocPacket();
         transmit_pos = 0;
         receive_pos = PACKET_SIZE;
-        radioThread.thread_ref = chThdCreateStatic(wa, sizeof(wa), NORMALPRIO, radio_thread_start, this);
+        radioThread = chThdCreateStatic(wa, sizeof(wa), NORMALPRIO, radio_thread_start, this);
         while(state == State::STARTING) {
             chThdYield();
         }
@@ -145,13 +146,13 @@ void RF24Serial::receive() {
 }
 
 void RF24Serial::receiveNonBlocking() {
-    for(int free = receiveFreeCount(); (free > 0) && (status.rx_p_no != RX_P_NO_EMPTY) && radio.available(); --free) {
+    for(int free = receiveFreeCount(); (free > 0) && (status.rxPipeNo() != RX_P_NO_EMPTY) && !radio.fifoStatus().rxEmpty(); --free) {
         receive();
     }
 }
 
 inline void RF24Serial::transmitNonBlocking(bool ack) {
-    while(!status.tx_full && transmitNext(ack)) {};
+    while(!status.txFifoFull() && transmitNext(ack)) {};
 }
 
 inline bool RF24Serial::transmitNext(bool ack) {
@@ -173,14 +174,14 @@ inline bool RF24Serial::transmitNext(bool ack) {
 
 Status RF24Serial::whatHappened() {
     stats.irq++;
-    Status status = radio.status(true);
-    if(status.rx_dr) {
+    Status status = radio.resetStatus();
+    if(status.dataReceived()) {
         stats.rx_dr++;
-        stats.rx_pipe[status.rx_p_no]++;
+        stats.rx_pipe[status.rxPipeNo()]++;
     }
-    if(status.max_rt) stats.max_rt++;
-    if(status.tx_ds) stats.tx_ds++;
-    stats.tx_full = status.tx_full;
+    if(status.maxRetries()) stats.max_rt++;
+    if(status.dataSent()) stats.tx_ds++;
+    stats.tx_full = status.txFifoFull();
     return status;
 }
 
@@ -195,7 +196,7 @@ void RF24Serial::ptxMain() {
 
             if(events & IRQ_EVENT) {
                 status = whatHappened();
-                if (status.max_rt) {
+                if (status.maxRetries()) {
                     radio.reUseTX();
                 }
             }
@@ -210,7 +211,7 @@ void RF24Serial::prxMain() {
     if(transition(STARTING, PRX)) {
         radio.startListening();
         while (true) {
-            eventmask_t events = chEvtWaitAnyTimeout(STOP_EVENT | IRQ_EVENT | POST_EVENT | FETCH_EVENT, MS2ST(4));
+            eventmask_t events = chEvtWaitAnyTimeout(STOP_EVENT | IRQ_EVENT | POST_EVENT | FETCH_EVENT, TIME_MS2I(4));
             if(events & STOP_EVENT) {
                 break;
             } else {
@@ -233,20 +234,20 @@ void RF24Serial::adhocMain() {
             case IRQ_EVENT:
                 {
                     Status status = whatHappened();
-                    if(status.rx_dr) {
+                    if(status.dataReceived()) {
                         receiveNonBlocking();
                     }
 
-                    if(status.max_rt) {
+                    if(status.maxRetries()) {
                         if(transition(PTX, PRX)) {
                             radio.startListening();
                         }
                     }
 
-                    if(status.tx_ds) {
+                    if(status.dataSent()) {
                         transmitNonBlocking();
                         stateMutex.lock();
-                        if(state == PTX && radio.txFifoEmpty()) {
+                        if(state == PTX && radio.fifoStatus().txEmpty()) {
                             radio.startListening();
                             state = PRX;
                         }
@@ -427,4 +428,4 @@ void RF24Serial::setError(Error _error) {
 }
 }
 
-#endif // __CHIBIOS__
+#endif // CHIBIOS

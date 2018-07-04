@@ -10,14 +10,25 @@
  * Use it in set(Setting).
  */
 typedef struct {
-  uint8_t reg;
-  uint8_t mask;
+  const uint8_t reg;
+  const uint8_t mask;
 } Setting;
 
 typedef struct {
   const Setting setting;
   const uint8_t value;
 } SettingValue;
+
+class BooleanSetting {
+public:
+  const Setting setting;
+  constexpr SettingValue enable() {
+    return { setting,setting.mask};
+  }
+  constexpr SettingValue disable() {
+    return {setting, 0x00};
+  }
+};
 
 class DataRate;
 
@@ -28,20 +39,19 @@ class DataRate;
  */
 class DataRateOption {
   const uint8_t value;
-  const uint32_t txRxDelay;
 
   constexpr DataRateOption(uint8_t value, uint32_t delay) 
     : value(value), txRxDelay(delay) {}
 
   friend DataRate;
 public:
+  const uint32_t txRxDelay;
   static constexpr Setting setting = { 
     RF_SETUP, _BV(RF_DR_LOW) | _BV(RF_DR_HIGH) };
 
   explicit constexpr operator SettingValue () {
     return { setting, value };
   }
-
 };
 
 class DataRate {
@@ -51,12 +61,23 @@ public:
   static constexpr auto _2MBPS = DataRateOption(_BV(RF_DR_HIGH), RF24_2MBPS_TX_RX_DELAY);
 };
 
-constexpr Setting CRC = { CONFIG, _BV(CRCO) | _BV(EN_CRC) };
-constexpr SettingValue CRC_DISABLED = { CRC, 0 };
-constexpr SettingValue CRC_8 = { CRC, _BV(EN_CRC) };
-constexpr SettingValue CRC_16 = { CRC, _BV(EN_CRC) | _BV( CRCO )};
+class CyclicRedundancyCheck {
+public:
+  static constexpr Setting setting = { CONFIG, _BV(CRCO) | _BV(EN_CRC) };
+  static constexpr SettingValue DISABLED = { setting, 0 };
+  static constexpr SettingValue CRC_8 = { setting, _BV(EN_CRC) };
+  static constexpr SettingValue CRC_16 = { setting, _BV(EN_CRC) | _BV( CRCO )};
+};
 
-constexpr SettingValue DYNAMIC_PAYLOADS = { { FEATURE, _BV(EN_DPL)}, _BV(EN_DPL) };
+class DynamicPayload {
+public:
+  static constexpr BooleanSetting feature = { { FEATURE, _BV(EN_DPL) } };
+  static constexpr BooleanSetting pipe(uint8_t channel) {
+    return { { DYNPD, _BV(channel) } };
+  }
+
+  static constexpr BooleanSetting all = { { DYNPD, 0b111111 } };
+};
 
 class Power {
 public:
@@ -74,28 +95,26 @@ class Retries {
 public:
   static constexpr Setting setting = { SETUP_RETR, 0xff};
   static constexpr SettingValue retries(uint8_t delay, uint8_t count) {
-    return { setting, (delay&0xf)<<ARD | (count&0xf)<<ARC };
+    return { setting, (uint8_t)((delay&0xf)<<ARD | (count&0xf)<<ARC) };
   }
 };
 
 class AutoAck {
 public:
-  static constexpr Setting pipe(uint8_t p) {
-    return { EN_AA, _BV(p) };
+  static constexpr BooleanSetting pipe(uint8_t p) {
+    return BooleanSetting({ EN_AA, _BV(p) });
   }
 
-  static constexpr SettingValue enableForPipe(uint8_t p) {
-    return { pipe(p), _BV(p) };
-  }
-
-  static constexpr SettingValue disableForPipe(uint8_t p) {
-    return { pipe(p), 0 };
-  }
-
-  static constexpr Setting all = { EN_AA,  0b111111 };
-  static constexpr SettingValue enable = { all, all.mask }; 
-  static constexpr SettingValue disable = { all, 0 }; 
+  static constexpr BooleanSetting all = { { EN_AA, 0b111111 } };
 };
 
+class Channel {
+public:
+  static constexpr uint8_t max = 127;
+  static constexpr Setting setting = { RF_CH, 0xff};
+  static constexpr SettingValue channel(uint8_t channel) {
+    return { setting, rf24_min(channel,max) };
+  }
+};
 
 #endif // __RF24_SETTINGS_H__

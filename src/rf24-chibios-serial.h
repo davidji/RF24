@@ -1,10 +1,10 @@
 #ifndef _RF24_CHIBIOS_SERIAL_H_
 #define _RF24_CHIBIOS_SERIAL_H_
 
-#ifdef __CHIBIOS__
+#ifdef CHIBIOS
 #include <ch.hpp>
 #include <chdebug.h>
-#include <RF24.h>
+#include <rf24.h>
 
 namespace rf24 {
 namespace serial {
@@ -54,9 +54,9 @@ const eventmask_t TX_EVENT = 0x2;
 
 struct RF24Serial {
     const struct PacketTransmitStreamVMT * const vmt;
+    static constexpr uint8_t ADDRESS_WIDTH = 5;
+    RF24<Rf24ChibiosIo, ADDRESS_WIDTH> radio;
 private:
-
-    RF24 &radio;
     uint8_t readPipe = 0;
     const uint8_t *readAddress = NULL;
     const uint8_t *writeAddress = NULL;
@@ -187,7 +187,7 @@ private:
     void adhocMain();
 
 public:
-    RF24Serial(RF24 &rf24);
+    RF24Serial(Rf24ChibiosIo io);
 
     inline void ptx(const uint8_t *address) {
         mode = Mode::PTX_ONLY;

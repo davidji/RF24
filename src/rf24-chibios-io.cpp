@@ -3,14 +3,12 @@
 
 #include "rf24-chibios-io.h"
 
-#ifdef __CHIBIOS__
+#ifdef CHIBIOS
 Rf24ChibiosIo::Rf24ChibiosIo(
         SPIDriver* driver,
         const SPIConfig* config,
-        ioportid_t ce_port,
-        uint8_t ce_pad)
-    : driver(driver), config(config),
-      ce_port(ce_port), ce_pad(ce_pad) {
+        ioline_t ce)
+    : driver(driver), config(config), ceLine(ce) {
 }
 
 void Rf24ChibiosIo::begin() {
@@ -49,6 +47,6 @@ void Rf24ChibiosIo::transfern(const uint8_t* buf, uint32_t len) {
 }
 
 void Rf24ChibiosIo::ce(bool level) {
-    palWritePad(ce_port, ce_pad, level);
+    palWriteLine(ceLine, level);
 }
 #endif
