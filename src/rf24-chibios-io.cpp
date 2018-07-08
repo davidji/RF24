@@ -5,7 +5,7 @@
 
 #ifdef CHIBIOS
 
-#include <alloca.h>
+#include <algorithm>
 #include <string.h>
 
 Rf24ChibiosIo::Rf24ChibiosIo(
@@ -48,10 +48,11 @@ void Rf24ChibiosIo::transfern(const uint8_t* buf, uint32_t len) {
     // source buffer is safe for the driver so for now, I'm going to assume I
     // have to copy the buffer. The buffer will either be an address, or
     // a packet, so the maximum size is 32 bytes.
-    uint8_t *copy;
-    copy = (uint8_t *)alloca(len);
-    memcpy(copy, buf, len);
-    spiSend(driver, len, buf);
+    constexpr uint32_t maxlen = 32;
+    uint8_t bufcopy[maxlen];
+
+    memcpy(bufcopy, buf, std::min(len, maxlen));
+    spiSend(driver, len, bufcopy);
 }
 
 void Rf24ChibiosIo::ce(bool level) {
