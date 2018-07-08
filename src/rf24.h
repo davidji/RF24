@@ -399,7 +399,7 @@ public:
    * @param address The 24, 32 or 40 bit address of the pipe to open.
    */
   void openReadingPipe(uint8_t pipe, const uint8_t *address) {
-    switch(pipe) {
+      switch(pipe) {
       case 0: 
         // If this is pipe 0, cache the address.  This is needed because
         // openWritingPipe() will overwrite the pipe 0 address, so
@@ -1022,9 +1022,6 @@ private:
 
   /**
    * Read the receive payload
-   *
-   * The size of data read is the fixed payload size, see getPayloadSize()
-   *
    * @param buf Where to put the data
    * @param len Maximum number of bytes to read
    * @return Current value of status register

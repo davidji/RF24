@@ -14,3 +14,9 @@ const std::array<SettingValue, 4> RF24InternalSettings::INIT = {
     FeatureRegister::INIT,
     DynamicPayloadsRegister::INIT
 };
+
+const SettingValue RF24InternalSettings::Power::UP;
+const SettingValue RF24InternalSettings::Power::DOWN;
+const SettingValue RF24InternalSettings::PrimaryRx::ENABLE;
+
+const SettingValue Power::MAX;

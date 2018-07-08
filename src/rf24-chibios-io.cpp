@@ -4,6 +4,10 @@
 #include "rf24-chibios-io.h"
 
 #ifdef CHIBIOS
+
+#include <alloca.h>
+#include <string.h>
+
 Rf24ChibiosIo::Rf24ChibiosIo(
         SPIDriver* driver,
         const SPIConfig* config,
@@ -38,15 +42,19 @@ uint8_t Rf24ChibiosIo::transfer(uint8_t tx) {
     return rx;
 }
 
-void Rf24ChibiosIo::transfernb(const uint8_t* tx, uint8_t* rx, uint32_t len) {
-    spiExchange(driver, len, tx, rx);
-}
-
 void Rf24ChibiosIo::transfern(const uint8_t* buf, uint32_t len) {
+    // The STM32 SPI driver is DMA, and DMA from flash isn't possible:
+    // it will result in a halt. I don't know how to work out if the
+    // source buffer is safe for the driver so for now, I'm going to assume I
+    // have to copy the buffer. The buffer will either be an address, or
+    // a packet, so the maximum size is 32 bytes.
+    uint8_t *copy;
+    copy = (uint8_t *)alloca(len);
+    memcpy(copy, buf, len);
     spiSend(driver, len, buf);
 }
 
 void Rf24ChibiosIo::ce(bool level) {
-    palWriteLine(ceLine, level);
+    palWriteLine(ceLine, level ? PAL_HIGH : PAL_LOW);
 }
 #endif

@@ -49,14 +49,6 @@ public:
 	uint8_t transfer(uint8_t tx_);
 	
 	/**
-	* Transfer a buffer of data
-	* @param tbuf Transmit buffer
-	* @param rbuf Receive buffer
-	* @param len Length of the data
-	*/
-	void transfernb(const uint8_t* tbuf, uint8_t* rbuf, uint32_t len);
-
-	/**
 	* Transfer a buffer of data, discarding the responses
 	* @param buf Pointer to a buffer of data
 	* @param len Length of the data
